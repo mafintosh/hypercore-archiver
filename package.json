@@ -1,0 +1,30 @@
+{
+  "name": "hypercore-archiver",
+  "version": "0.0.0",
+  "description": "A hypercore peer that will backup multiple hypercores/hyperdrives efficiently to disk.",
+  "main": "index.js",
+  "dependencies": {
+    "hypercore": "^4.11.0",
+    "hyperdrive-encoding": "^2.0.1",
+    "level": "^1.5.0",
+    "random-access-page-files": "^1.0.0",
+    "stream-collector": "^1.0.1",
+    "subleveldown": "^2.1.0"
+  },
+  "devDependencies": {
+    "standard": "^8.4.0"
+  },
+  "scripts": {
+    "test": "standard"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mafintosh/hypercore-archiver.git"
+  },
+  "author": "Mathias Buus (@mafintosh)",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/mafintosh/hypercore-archiver/issues"
+  },
+  "homepage": "https://github.com/mafintosh/hypercore-archiver"
+}
