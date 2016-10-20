@@ -40,10 +40,12 @@ function create (dir) {
   }
 
   function add (key, cb) {
+    if (typeof key === 'string') key = new Buffer(key, 'hex')
     keys.put(hypercore.discoveryKey(key).toString('hex'), key, cb)
   }
 
   function remove (key, cb) {
+    if (typeof key === 'string') key = new Buffer(key, 'hex')
     keys.del(hypercore.discoveryKey(key).toString('hex'), cb)
   }
 
