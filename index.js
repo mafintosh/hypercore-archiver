@@ -1,7 +1,7 @@
 var hypercore = require('hypercore')
 var level = require('level')
 var path = require('path')
-var storage = require('random-access-page-files')
+var storage = require('random-access-file')
 var encoding = require('hyperdrive-encoding')
 var subleveldown = require('subleveldown')
 var collect = require('stream-collector')
@@ -65,7 +65,7 @@ function create (dir) {
     if (Buffer.isBuffer(key)) key = key.toString('hex')
 
     var feed = core.createFeed(key, {
-      storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2)))
+      storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'))
     })
 
     feed.replicate({stream: stream})
