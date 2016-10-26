@@ -45,7 +45,6 @@ function create (dir) {
           feed.close()
         })
       })
-
     })
 
     return stream
