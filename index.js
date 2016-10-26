@@ -6,6 +6,7 @@ var encoding = require('hyperdrive-encoding')
 var subleveldown = require('subleveldown')
 var collect = require('stream-collector')
 var eos = require('end-of-stream')
+var events = require('events')
 
 module.exports = create
 
@@ -16,15 +17,16 @@ function create (dir) {
   var keys = subleveldown(db, 'added-keys', {valueEncoding: 'binary'})
   var core = hypercore(db)
   var opened = {}
+  var that = new events.EventEmitter()
 
-  return {
-    discoveryKey: hypercore.discoveryKey,
-    core: core,
-    list: list,
-    add: add,
-    remove: remove,
-    replicate: replicate
-  }
+  that.discoveryKey = hypercore.discoveryKey
+  that.core = core
+  that.list = list
+  that.add = add
+  that.remove = remove
+  that.replicate = replicate
+
+  return that
 
   function list (cb) {
     return collect(keys.createValueStream(), cb)
@@ -39,7 +41,19 @@ function create (dir) {
       keys.get(hex, function (err, key) {
         if (err) return // ignore errors
         var feed = open(key, true, stream)
-        opened[hex] = (opened[hex] || 0) + 1
+        var cnt = opened[hex] = (opened[hex] || 0) + 1
+
+        if (cnt === 1) {
+          var downloaded = false
+
+          feed.once('download', function () {
+            downloaded = true
+          })
+          feed.once('download-finished', function () {
+            if (downloaded) that.emit('archived', feed.key)
+          })
+        }
+
         eos(stream, function () {
           if (--opened[hex]) return
           feed.close()
@@ -52,11 +66,13 @@ function create (dir) {
 
   function add (key, cb) {
     if (typeof key === 'string') key = new Buffer(key, 'hex')
+    that.emit('add', key)
     keys.put(hypercore.discoveryKey(key).toString('hex'), key, cb)
   }
 
   function remove (key, cb) {
     if (typeof key === 'string') key = new Buffer(key, 'hex')
+    that.emit('remove', key)
     keys.del(hypercore.discoveryKey(key).toString('hex'), cb)
   }
 
