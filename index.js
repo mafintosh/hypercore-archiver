@@ -18,6 +18,7 @@ function create (dir) {
   var opened = {}
 
   return {
+    discoveryKey: hypercore.discoveryKey,
     core: core,
     list: list,
     add: add,
