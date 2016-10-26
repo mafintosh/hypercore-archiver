@@ -5,6 +5,7 @@ var storage = require('random-access-page-files')
 var encoding = require('hyperdrive-encoding')
 var subleveldown = require('subleveldown')
 var collect = require('stream-collector')
+var eos = require('end-of-stream')
 
 module.exports = create
 
@@ -14,6 +15,7 @@ function create (dir) {
   var db = level(path.join(dir, 'db'))
   var keys = subleveldown(db, 'added-keys', {valueEncoding: 'binary'})
   var core = hypercore(db)
+  var opened = {}
 
   return {
     core: core,
@@ -30,10 +32,19 @@ function create (dir) {
   function replicate () {
     var stream = core.replicate()
 
+    stream.setMaxListeners(0)
     stream.on('open', function (disc) {
-      keys.get(disc.toString('hex'), function (err, key) {
-        if (!err) open(key, true, stream)
+      var hex = disc.toString('hex')
+      keys.get(hex, function (err, key) {
+        if (err) return // ignore errors
+        var feed = open(key, true, stream)
+        opened[hex] = (opened[hex] || 0) + 1
+        eos(stream, function () {
+          if (--opened[hex]) return
+          feed.close()
+        })
       })
+
     })
 
     return stream
@@ -58,11 +69,13 @@ function create (dir) {
 
     feed.replicate({stream: stream})
 
-    if (!maybeContent) return
+    if (!maybeContent) return feed
 
     feed.get(0, function (err, data) {
       if (!decodeContent(err, data) && feed.blocks) feed.get(feed.blocks - 1, decodeContent)
     })
+
+    return feed
 
     function decodeContent (err, data) {
       if (err) return false

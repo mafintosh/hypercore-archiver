@@ -4,6 +4,7 @@
   "description": "A hypercore peer that will backup multiple hypercores/hyperdrives efficiently to disk.",
   "main": "index.js",
   "dependencies": {
+    "end-of-stream": "^1.1.0",
     "hypercore": "^4.11.0",
     "hyperdrive-encoding": "^2.0.1",
     "level": "^1.5.0",
