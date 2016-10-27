@@ -41,18 +41,7 @@ function create (dir) {
       keys.get(hex, function (err, key) {
         if (err) return // ignore errors
         var feed = open(key, true, stream)
-        var cnt = opened[hex] = (opened[hex] || 0) + 1
-
-        if (cnt === 1) {
-          var downloaded = false
-
-          feed.once('download', function () {
-            downloaded = true
-          })
-          feed.once('download-finished', function () {
-            if (downloaded) that.emit('archived', feed.key)
-          })
-        }
+        opened[hex] = (opened[hex] || 0) + 1
 
         eos(stream, function () {
           if (--opened[hex]) return
@@ -84,6 +73,18 @@ function create (dir) {
     })
 
     feed.replicate({stream: stream})
+
+    if (!feed.firstDownload) {
+      var downloaded = false
+
+      feed.firstDownload = true
+      feed.once('download', function () {
+        downloaded = true
+      })
+      feed.once('download-finished', function () {
+        if (downloaded) that.emit('archived', feed.key, feed)
+      })
+    }
 
     if (!maybeContent) return feed
 
