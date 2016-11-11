@@ -32,21 +32,27 @@ function create (dir) {
     return collect(keys.createValueStream(), cb)
   }
 
+  function cleanup (feed, stream) {
+    var hex = feed.discoveryKey.toString('hex')
+    opened[hex] = (opened[hex] || 0) + 1
+
+    if (stream.destroyed) return close()
+    eos(stream, close)
+
+    function close () {
+      if (--opened[hex]) return
+      feed.close()
+    }
+  }
+
   function replicate () {
     var stream = core.replicate()
 
     stream.setMaxListeners(0)
     stream.on('open', function (disc) {
-      var hex = disc.toString('hex')
-      keys.get(hex, function (err, key) {
+      keys.get(disc.toString('hex'), function (err, key) {
         if (err) return // ignore errors
-        var feed = open(key, true, stream)
-        opened[hex] = (opened[hex] || 0) + 1
-
-        eos(stream, function () {
-          if (--opened[hex]) return
-          feed.close()
-        })
+        open(key, true, stream)
       })
     })
 
@@ -85,6 +91,8 @@ function create (dir) {
         if (downloaded) that.emit('archived', feed.key, feed)
       })
     }
+
+    cleanup(feed, stream)
 
     if (!maybeContent) return feed
 
