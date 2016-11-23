@@ -90,14 +90,12 @@ function create (dir) {
         })
 
         function done (err, content) {
+          feed.close()
           if (err) return cb(err)
           if (typeof key === 'string') key = new Buffer(key, 'hex')
-          if (!content) return cb(null, [key, feed])
+          if (!content) return cb(null, [key])
           var contentKey = content.toString('hex')
-          var contentFeed = core.createFeed(content, {
-            storage: storage(path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data'))
-          })
-          cb(null, [key, content], [feed, contentFeed])
+          cb(null, [key, content])
         }
       })
     })
