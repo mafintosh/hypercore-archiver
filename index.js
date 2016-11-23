@@ -24,6 +24,7 @@ function create (dir) {
   that.list = list
   that.add = add
   that.remove = remove
+  that.get = get
   that.replicate = replicate
 
   return that
@@ -69,6 +70,37 @@ function create (dir) {
     if (typeof key === 'string') key = new Buffer(key, 'hex')
     that.emit('remove', key)
     keys.del(hypercore.discoveryKey(key).toString('hex'), cb)
+  }
+
+  function get (key, cb) {
+    if (typeof key === 'string') key = new Buffer(key, 'hex')
+    keys.get(hypercore.discoveryKey(key).toString('hex'), function (err, key) {
+      if (err) return cb() // ignore errors
+      if (Buffer.isBuffer(key)) key = key.toString('hex')
+
+      var feed = core.createFeed(key, {
+        storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'))
+      })
+      feed.get(0, function (err, data) {
+        if (err) return done(err)
+        var content = hyperdriveFeedKey(data)
+        if (content || !feed.blocks) return done(null, content)
+        feed.get(feed.blocks - 1, function (err, data) {
+          done(hyperdriveFeedKey(data))
+        })
+
+        function done (err, content) {
+          if (err) return cb(err)
+          if (typeof key === 'string') key = new Buffer(key, 'hex')
+          if (!content) return cb(null, [key, feed])
+          var contentKey = content.toString('hex')
+          var contentFeed = core.createFeed(content, {
+            storage: storage(path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data'))
+          })
+          cb(null, [key, content], [feed, contentFeed])
+        }
+      })
+    })
   }
 
   function open (key, maybeContent, stream) {
