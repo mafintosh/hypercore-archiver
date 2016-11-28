@@ -1,4 +1,5 @@
 var hypercore = require('hypercore')
+var hyperdrive = require('hyperdrive')
 var level = require('level')
 var path = require('path')
 var storage = require('random-access-file')
@@ -84,19 +85,27 @@ function create (dir) {
         storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'))
       })
       feed.get(0, function (err, data) {
-        if (err) return done(err)
+        if (err) return cb(err)
         var content = hyperdriveFeedKey(data)
-        if (content || !feed.blocks) return done(null, content)
+        if (content || !feed.blocks) return done(content)
         feed.get(feed.blocks - 1, function (err, data) {
+          if (err) return cb(err)
           done(hyperdriveFeedKey(data))
         })
       })
 
-      function done (err, contentKey) {
-        if (err) return cb(err)
-        if (!opened[discKey]) feed.close()
-        if (!contentKey) return cb(null, [datKeyAs.buf(key)])
-        cb(null, [datKeyAs.buf(key), datKeyAs.buf(contentKey)])
+      function done (contentKey) {
+        opened[discKey] = (opened[discKey] || 0) + 1
+        if (!contentKey) return cb(null, feed)
+        contentKey = datKeyAs.str(contentKey)
+        var drive = hyperdrive(db)
+        var archive = drive.createArchive(key, {
+          file: function () {
+            return storage(path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data'))
+          },
+          storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'))
+        })
+        cb(null, archive)
       }
     })
   }
