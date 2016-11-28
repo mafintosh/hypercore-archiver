@@ -63,6 +63,10 @@ Add a hypercore/hyperdrive key to backup
 
 Remove a key from the backup
 
+#### `ar.get(key, callback)`
+
+Get the feed or archive for a given key.
+
 #### `var stream = ar.list([callback])`
 
 List all keys currently being backed up
