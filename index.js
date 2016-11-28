@@ -7,6 +7,7 @@ var subleveldown = require('subleveldown')
 var collect = require('stream-collector')
 var eos = require('end-of-stream')
 var events = require('events')
+var datKeyAs = require('dat-key-as')
 
 module.exports = create
 
@@ -61,23 +62,24 @@ function create (dir) {
   }
 
   function add (key, cb) {
-    if (typeof key === 'string') key = new Buffer(key, 'hex')
+    key = datKeyAs.buf(key)
     that.emit('add', key)
     keys.put(hypercore.discoveryKey(key).toString('hex'), key, cb)
   }
 
   function remove (key, cb) {
-    if (typeof key === 'string') key = new Buffer(key, 'hex')
+    key = datKeyAs.buf(key)
     that.emit('remove', key)
     keys.del(hypercore.discoveryKey(key).toString('hex'), cb)
   }
 
   function get (key, cb) {
-    if (typeof key === 'string') key = new Buffer(key, 'hex')
-    keys.get(hypercore.discoveryKey(key).toString('hex'), function (err, key) {
-      if (err) return cb() // ignore errors
-      if (Buffer.isBuffer(key)) key = key.toString('hex')
+    key = datKeyAs.buf(key)
+    var discKey = hypercore.discoveryKey(key).toString('hex')
+    keys.get(discKey, function (err, key) {
+      if (err) return cb(err) // no key found
 
+      key = datKeyAs.str(key)
       var feed = core.createFeed(key, {
         storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'))
       })
@@ -88,21 +90,19 @@ function create (dir) {
         feed.get(feed.blocks - 1, function (err, data) {
           done(hyperdriveFeedKey(data))
         })
-
-        function done (err, content) {
-          feed.close()
-          if (err) return cb(err)
-          if (typeof key === 'string') key = new Buffer(key, 'hex')
-          if (!content) return cb(null, [key])
-          var contentKey = content.toString('hex')
-          cb(null, [key, content])
-        }
       })
+
+      function done (err, contentKey) {
+        if (err) return cb(err)
+        if (!opened[discKey]) feed.close()
+        if (!contentKey) return cb(null, [datKeyAs.buf(key)])
+        cb(null, [datKeyAs.buf(key), datKeyAs.buf(contentKey)])
+      }
     })
   }
 
   function open (key, maybeContent, stream) {
-    if (Buffer.isBuffer(key)) key = key.toString('hex')
+    key = datKeyAs.str(key)
 
     var feed = core.createFeed(key, {
       storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'))
