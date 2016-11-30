@@ -1,5 +1,4 @@
 var hypercore = require('hypercore')
-var hyperdrive = require('hyperdrive')
 var level = require('level')
 var path = require('path')
 var storage = require('random-access-file')
@@ -21,6 +20,7 @@ function create (dir) {
   var opened = {}
   var that = new events.EventEmitter()
 
+  that.db = db
   that.discoveryKey = hypercore.discoveryKey
   that.core = core
   that.list = list
@@ -96,16 +96,16 @@ function create (dir) {
 
       function done (contentKey) {
         opened[discKey] = (opened[discKey] || 0) + 1
-        if (!contentKey) return cb(null, feed)
+        if (!contentKey) return cb(null, [feed])
+
         contentKey = datKeyAs.str(contentKey)
-        var drive = hyperdrive(db)
-        var archive = drive.createArchive(key, {
-          file: function () {
-            return storage(path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data'))
-          },
-          storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'))
+        var contentFeed = core.createFeed(contentKey, {
+          storage: storage(path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data'))
         })
-        cb(null, archive)
+        var contentDiscKey = hypercore.discoveryKey(contentKey).toString('hex')
+        opened[contentDiscKey] = (opened[contentDiscKey] || 0) + 1
+
+        cb(null, [feed, contentFeed])
       }
     })
   }
