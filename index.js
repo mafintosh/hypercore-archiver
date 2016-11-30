@@ -7,6 +7,7 @@ var subleveldown = require('subleveldown')
 var collect = require('stream-collector')
 var eos = require('end-of-stream')
 var events = require('events')
+var datKeyAs = require('dat-key-as')
 
 module.exports = create
 
@@ -19,11 +20,13 @@ function create (dir) {
   var opened = {}
   var that = new events.EventEmitter()
 
+  that.db = db
   that.discoveryKey = hypercore.discoveryKey
   that.core = core
   that.list = list
   that.add = add
   that.remove = remove
+  that.get = get
   that.replicate = replicate
 
   return that
@@ -60,19 +63,55 @@ function create (dir) {
   }
 
   function add (key, cb) {
-    if (typeof key === 'string') key = new Buffer(key, 'hex')
+    key = datKeyAs.buf(key)
     that.emit('add', key)
     keys.put(hypercore.discoveryKey(key).toString('hex'), key, cb)
   }
 
   function remove (key, cb) {
-    if (typeof key === 'string') key = new Buffer(key, 'hex')
+    key = datKeyAs.buf(key)
     that.emit('remove', key)
     keys.del(hypercore.discoveryKey(key).toString('hex'), cb)
   }
 
+  function get (key, cb) {
+    key = datKeyAs.buf(key)
+    var discKey = hypercore.discoveryKey(key).toString('hex')
+    keys.get(discKey, function (err, key) {
+      if (err) return cb(err) // no key found
+
+      key = datKeyAs.str(key)
+      var feed = core.createFeed(key, {
+        storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'))
+      })
+      feed.get(0, function (err, data) {
+        if (err) return cb(err)
+        var content = hyperdriveFeedKey(data)
+        if (content || !feed.blocks) return done(content)
+        feed.get(feed.blocks - 1, function (err, data) {
+          if (err) return cb(err)
+          done(hyperdriveFeedKey(data))
+        })
+      })
+
+      function done (contentKey) {
+        opened[discKey] = (opened[discKey] || 0) + 1
+        if (!contentKey) return cb(null, feed)
+
+        contentKey = datKeyAs.str(contentKey)
+        var contentFeed = core.createFeed(contentKey, {
+          storage: storage(path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data'))
+        })
+        var contentDiscKey = hypercore.discoveryKey(contentKey).toString('hex')
+        opened[contentDiscKey] = (opened[contentDiscKey] || 0) + 1
+
+        cb(null, feed, contentFeed)
+      }
+    })
+  }
+
   function open (key, maybeContent, stream) {
-    if (Buffer.isBuffer(key)) key = key.toString('hex')
+    key = datKeyAs.str(key)
 
     var feed = core.createFeed(key, {
       storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'))
