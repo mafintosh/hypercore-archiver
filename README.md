@@ -65,7 +65,7 @@ Remove a key from the backup
 
 #### `ar.get(key, callback)`
 
-Get the feed or archive for a given key.
+Get the feed(s) for a given key. Callback will return `(err, feed)`. If the key is an archive, the callback returns `callback(err, metadataFeed, contentFeed)` which can be used in hyperdrive to create an archive.
 
 #### `var stream = ar.list([callback])`
 

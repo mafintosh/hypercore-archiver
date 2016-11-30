@@ -96,7 +96,7 @@ function create (dir) {
 
       function done (contentKey) {
         opened[discKey] = (opened[discKey] || 0) + 1
-        if (!contentKey) return cb(null, [feed])
+        if (!contentKey) return cb(null, feed)
 
         contentKey = datKeyAs.str(contentKey)
         var contentFeed = core.createFeed(contentKey, {
@@ -105,7 +105,7 @@ function create (dir) {
         var contentDiscKey = hypercore.discoveryKey(contentKey).toString('hex')
         opened[contentDiscKey] = (opened[contentDiscKey] || 0) + 1
 
-        cb(null, [feed, contentFeed])
+        cb(null, feed, contentFeed)
       }
     })
   }
