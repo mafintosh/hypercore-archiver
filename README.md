@@ -55,6 +55,17 @@ pump(socket, feed.replicate(), socket)
 
 Create a new archiver. Folder is where on disk the data will be stored.
 
+#### `ar.changes(callback)`
+
+Get a hypercore feed with all the changes of the archiver. The format of the messages are JSON and look like this
+
+``` js
+{
+  type: 'add' | 'remove',
+  key: 'key-added-or-removed-in-hex'
+}
+```
+
 #### `ar.add(key, [callback])`
 
 Add a hypercore/hyperdrive key to backup

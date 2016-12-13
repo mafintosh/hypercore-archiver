@@ -8,6 +8,7 @@ var collect = require('stream-collector')
 var eos = require('end-of-stream')
 var events = require('events')
 var datKeyAs = require('dat-key-as')
+var thunky = require('thunky')
 
 module.exports = create
 
@@ -15,6 +16,7 @@ function create (dir) {
   if (!dir) dir = '.'
 
   var db = level(path.join(dir, 'db'))
+  var misc = subleveldown(db, 'misc', {valueEncoding: 'binary'})
   var keys = subleveldown(db, 'added-keys', {valueEncoding: 'binary'})
   var core = hypercore(db)
   var opened = {}
@@ -29,10 +31,33 @@ function create (dir) {
   that.get = get
   that.replicate = replicate
 
+  that.changes = thunky(function (cb) {
+    misc.get('changes', function (_, key) {
+      var feed = core.createFeed(key)
+
+      if (key) return open()
+      misc.put('changes', feed.key, open)
+
+      function open (err) {
+        if (err) return cb(err)
+        feed.open(function (err) {
+          if (err) return cb(err)
+          cb(null, feed)
+        })
+      }
+    })
+  })
+
   return that
 
   function list (cb) {
     return collect(keys.createValueStream(), cb)
+  }
+
+  function append (change) {
+    that.changes(function (_, feed) {
+      if (feed && feed.secretKey) feed.append(JSON.stringify(change) + '\n')
+    })
   }
 
   function cleanup (feed, stream) {
@@ -65,13 +90,24 @@ function create (dir) {
   function add (key, cb) {
     key = datKeyAs.buf(key)
     that.emit('add', key)
-    keys.put(hypercore.discoveryKey(key).toString('hex'), key, cb)
+
+    var hex = hypercore.discoveryKey(key).toString('hex')
+    keys.get(hex, function (err) {
+      if (!err) return cb()
+      keys.put(hex, key, cb)
+      append({type: 'add', key: key.toString('hex')})
+    })
   }
 
   function remove (key, cb) {
     key = datKeyAs.buf(key)
     that.emit('remove', key)
-    keys.del(hypercore.discoveryKey(key).toString('hex'), cb)
+    var hex = hypercore.discoveryKey(key).toString('hex')
+    keys.get(hex, function (err) {
+      if (err) return cb()
+      keys.del(hex, cb)
+      append({type: 'remove', key: key.toString('hex')})
+    })
   }
 
   function get (key, cb) {
