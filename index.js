@@ -78,10 +78,18 @@ function create (dir) {
 
     stream.setMaxListeners(0)
     stream.on('open', function (disc) {
-      keys.get(disc.toString('hex'), function (err, key) {
-        if (err) return // ignore errors
-        open(key, true, stream)
+      that.changes(function (_, feed) {
+        if (feed && feed.discoveryKey.toString('hex') === disc.toString('hex')) {
+          feed.replicate({stream: stream})
+          return
+        }
+
+        keys.get(disc.toString('hex'), function (err, key) {
+          if (err) return // ignore errors
+          open(key, true, stream)
+        })
       })
+
     })
 
     return stream
