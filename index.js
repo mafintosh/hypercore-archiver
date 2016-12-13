@@ -73,11 +73,21 @@ function create (dir) {
     }
   }
 
-  function replicate () {
+  function replicate (opts) {
+    if (!opts) opts = {}
+
     var stream = core.replicate()
 
     stream.setMaxListeners(0)
-    stream.on('open', function (disc) {
+    stream.on('open', onopen)
+
+    if (!opts.passive) {
+      that.list().on('data', function (key) {
+        open(key, true, stream)
+      })
+    }
+
+    function onopen (disc) {
       that.changes(function (_, feed) {
         if (feed && feed.discoveryKey.toString('hex') === disc.toString('hex')) {
           feed.replicate({stream: stream})
@@ -89,8 +99,7 @@ function create (dir) {
           open(key, true, stream)
         })
       })
-
-    })
+    }
 
     return stream
   }
