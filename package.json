@@ -1,6 +1,6 @@
 {
   "name": "hypercore-archiver",
-  "version": "2.3.0",
+  "version": "2.4.0",
   "description": "A hypercore peer that will backup multiple hypercores/hyperdrives efficiently to disk.",
   "main": "index.js",
   "dependencies": {
