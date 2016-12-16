@@ -62,13 +62,14 @@ function create (dir) {
 
   function cleanup (feed, stream) {
     var hex = feed.discoveryKey.toString('hex')
-    opened[hex] = (opened[hex] || 0) + 1
+    var old = opened[hex]
 
     if (stream.destroyed) return close()
     eos(stream, close)
 
     function close () {
-      if (--opened[hex]) return
+      if (--old.cnt) return
+      old.feed = null
       feed.close()
     }
   }
@@ -167,10 +168,19 @@ function create (dir) {
   function open (key, maybeContent, stream) {
     key = datKeyAs.str(key)
 
-    var feed = core.createFeed(key, {
-      storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'))
-    })
+    var hex = that.discoveryKey(new Buffer(key, 'hex')).toString('hex')
+    var old = opened[hex] || {feed: null, cnt: 0}
+    var feed = old.feed
 
+    opened[hex] = old
+
+    if (!feed) {
+      old.feed = feed = core.createFeed(key, {
+        storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'))
+      })
+    }
+
+    old.cnt++
     feed.replicate({stream: stream})
 
     if (!feed.firstDownload) {
