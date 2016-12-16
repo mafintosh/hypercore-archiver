@@ -78,6 +78,7 @@ function create (dir) {
 
     var stream = core.replicate()
 
+    stream.setTimeout(5000, stream.destroy)
     stream.setMaxListeners(0)
     stream.on('open', onopen)
 
