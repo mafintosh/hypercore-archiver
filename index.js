@@ -1,7 +1,7 @@
 var hypercore = require('hypercore')
 var level = require('level')
 var path = require('path')
-var storage = require('random-access-file')
+var raf = require('random-access-file')
 var encoding = require('hyperdrive-encoding')
 var subleveldown = require('subleveldown')
 var collect = require('stream-collector')
@@ -12,10 +12,11 @@ var thunky = require('thunky')
 
 module.exports = create
 
-function create (dir) {
-  if (!dir) dir = '.'
+function create (dbOrDr, storageOpt) {
+  if (!dbOrDr) dbOrDr = '.'
 
-  var db = level(path.join(dir, 'db'))
+  var storage = storageOpt || raf
+  var db = typeof dbOrDr === 'string' ? level(path.join(dbOrDr, 'db')) : dbOrDr
   var misc = subleveldown(db, 'misc', {valueEncoding: 'binary'})
   var keys = subleveldown(db, 'added-keys', {valueEncoding: 'binary'})
   var core = hypercore(db)
