@@ -12,12 +12,14 @@ var thunky = require('thunky')
 
 module.exports = create
 
-function create (dbOrDir, storageOpt) {
-  if (!dbOrDir) dbOrDir = '.'
+function create (opts) {
+  opts = opts || {}
+  if (typeof opts === 'string') opts = { dir: opts }
 
-  var storage = storageOpt || raf
-  var db = typeof dbOrDir === 'string' ? level(path.join(dbOrDir, 'db')) : dbOrDir
-  var dir = typeof dbOrDir === 'string' ? dbOrDir : '.'
+  var dir = opts.dir || '.'
+  var db = opts.db || level(path.join(dir, 'db'))
+  var storage = opts.storage || raf
+
   var misc = subleveldown(db, 'misc', {valueEncoding: 'binary'})
   var keys = subleveldown(db, 'added-keys', {valueEncoding: 'binary'})
   var core = hypercore(db)

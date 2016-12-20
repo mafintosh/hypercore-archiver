@@ -29,7 +29,7 @@ Setup the archiver
 var net = require('net')
 var pump = require('pump')
 var archiver = require('hypercore-archiver')
-var ar = archiver('./some-folder')
+var ar = archiver({ dir: './some-folder' })
 
 // add a hypercore/hyperdrive key whose content you want to archive
 ar.add(keyPrintedAbove)
@@ -51,9 +51,19 @@ pump(socket, feed.replicate(), socket)
 
 ## API
 
-#### `var ar = archiver(folder|db, [storage])`
+#### `var ar = archiver({ dir:, db:, storage: })`
 
-Create a new archiver. Can pass folder or db, where folder is the path to where data will be stored, or db is a level-up compatible instance (eg memdb). Can also pass a storage option, the [random-access-file](https://github.com/mafintosh/random-access-file) module or [random-access-memory](https://github.com/mafintosh/random-access-memory).
+Create a new archiver. Can pass the `dir` opt as a path to where data will be stored. Alternatively, can pass `db` as a level-up compatible instance (eg memdb). Can also pass a `storage` option, the [random-access-file](https://github.com/mafintosh/random-access-file) module or [random-access-memory](https://github.com/mafintosh/random-access-memory).
+
+Realistically there are two usages you'll want:
+
+```js
+// for production:
+archiver({ dir: '/where/data/goes' })
+
+// for tests:
+archiver({ db: require('memdb')(), storage: require('random-access-memory') })
+```
 
 #### `ar.changes(callback)`
 
