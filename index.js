@@ -12,10 +12,10 @@ var thunky = require('thunky')
 
 module.exports = create
 
-function create (dir) {
-  if (!dir) dir = '.'
+function create (dbOrDr) {
+  if (!dbOrDr) dbOrDr = '.'
 
-  var db = level(path.join(dir, 'db'))
+  var db = typeof dbOrDr === 'string' ? level(path.join(dbOrDr, 'db')) : dbOrDr
   var misc = subleveldown(db, 'misc', {valueEncoding: 'binary'})
   var keys = subleveldown(db, 'added-keys', {valueEncoding: 'binary'})
   var core = hypercore(db)

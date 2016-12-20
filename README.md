@@ -51,9 +51,9 @@ pump(socket, feed.replicate(), socket)
 
 ## API
 
-#### `var ar = archiver(folder)`
+#### `var ar = archiver(folder|db)`
 
-Create a new archiver. Folder is where on disk the data will be stored.
+Create a new archiver. Can pass folder or db, where folder is the path to where data will be stored, or db is a level-up compatible instance (eg memdb).
 
 #### `ar.changes(callback)`
 
