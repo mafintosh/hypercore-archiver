@@ -51,9 +51,9 @@ pump(socket, feed.replicate(), socket)
 
 ## API
 
-#### `var ar = archiver(folder|db)`
+#### `var ar = archiver(folder|db, [storage])`
 
-Create a new archiver. Can pass folder or db, where folder is the path to where data will be stored, or db is a level-up compatible instance (eg memdb).
+Create a new archiver. Can pass folder or db, where folder is the path to where data will be stored, or db is a level-up compatible instance (eg memdb). Can also pass a storage option, the [random-access-file](https://github.com/mafintosh/random-access-file) module or [random-access-memory](https://github.com/mafintosh/random-access-memory).
 
 #### `ar.changes(callback)`
 
