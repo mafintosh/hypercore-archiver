@@ -51,7 +51,7 @@ pump(socket, feed.replicate(), socket)
 
 ## API
 
-#### `var ar = archiver({ dir:, db:, storage: })`
+#### `var ar = archiver(dir|{ dir:, db:, storage: })`
 
 Create a new archiver. Can pass the `dir` opt as a path to where data will be stored. Alternatively, can pass `db` as a level-up compatible instance (eg memdb). Can also pass a `storage` option, the [random-access-file](https://github.com/mafintosh/random-access-file) module or [random-access-memory](https://github.com/mafintosh/random-access-memory).
 
@@ -59,6 +59,8 @@ Realistically there are two usages you'll want:
 
 ```js
 // for production:
+archiver('/where/data/goes')
+// which is the same as:
 archiver({ dir: '/where/data/goes' })
 
 // for tests:
