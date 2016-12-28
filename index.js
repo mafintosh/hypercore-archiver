@@ -74,6 +74,7 @@ function create (opts) {
     function close () {
       if (--old.cnt) return
       old.feed = null
+      opened[hex] = null
       feed.close()
     }
   }
