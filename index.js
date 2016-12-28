@@ -154,7 +154,9 @@ function create (opts) {
       })
 
       function done (contentKey) {
-        opened[discKey] = (opened[discKey] || 0) + 1
+        if (!opened[discKey]) opened[discKey] = {feed: feed, cnt: 0}
+        opened[discKey].cnt++
+
         if (!contentKey) return cb(null, feed)
 
         contentKey = datKeyAs.str(contentKey)
@@ -162,7 +164,9 @@ function create (opts) {
           storage: storage(path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data'))
         })
         var contentDiscKey = hypercore.discoveryKey(contentKey).toString('hex')
-        opened[contentDiscKey] = (opened[contentDiscKey] || 0) + 1
+
+        if (!opened[contentDiscKey]) opened[contentDiscKey] = {feed: contentFeed, cnt: 0}
+        opened[contentDiscKey].cnt++
 
         cb(null, feed, contentFeed)
       }
