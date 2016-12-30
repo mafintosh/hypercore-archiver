@@ -175,6 +175,7 @@ function create (opts) {
   }
 
   function open (key, maybeContent, stream) {
+    if (stream.destroyed) return
     key = datKeyAs.str(key)
 
     var hex = that.discoveryKey(new Buffer(key, 'hex')).toString('hex')
