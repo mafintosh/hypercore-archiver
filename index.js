@@ -22,6 +22,7 @@ function create (opts) {
 
   var misc = subleveldown(db, 'misc', {valueEncoding: 'binary'})
   var keys = subleveldown(db, 'added-keys', {valueEncoding: 'binary'})
+  var noContent = subleveldown(db, 'no-content', {valueEncoding: 'binary'})
   var core = hypercore(db)
   var opened = {}
   var that = new events.EventEmitter()
@@ -111,16 +112,26 @@ function create (opts) {
     return stream
   }
 
-  function add (key, cb) {
+  function add (key, opts, cb) {
+    if (typeof opts === 'function') return add(key, null, opts)
+    if (!opts) opts = {}
+
     key = datKeyAs.buf(key)
     that.emit('add', key)
 
     var hex = hypercore.discoveryKey(key).toString('hex')
     keys.get(hex, function (err) {
       if (!err) return cb()
+
+      if (opts.content === false) noContent.put(hex, key, done)
+      else noContent.del(hex, key, done)
+    })
+
+    function done (err) {
+      if (err) return cb(err)
       keys.put(hex, key, cb)
       append({type: 'add', key: key.toString('hex')})
-    })
+    }
   }
 
   function remove (key, cb) {
@@ -144,13 +155,16 @@ function create (opts) {
       var feed = core.createFeed(key, {
         storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'))
       })
-      feed.get(0, function (err, data) {
-        if (err) return cb(err)
-        var content = hyperdriveFeedKey(data)
-        if (content || !feed.blocks) return done(content)
-        feed.get(feed.blocks - 1, function (err, data) {
+      noContent.get(discKey, function (err) {
+        if (!err) return done(null)
+        feed.get(0, function (err, data) {
           if (err) return cb(err)
-          done(hyperdriveFeedKey(data))
+          var content = hyperdriveFeedKey(data)
+          if (content || !feed.blocks) return done(content)
+          feed.get(feed.blocks - 1, function (err, data) {
+            if (err) return cb(err)
+            done(hyperdriveFeedKey(data))
+          })
         })
       })
 
@@ -209,8 +223,11 @@ function create (opts) {
 
     if (!maybeContent) return feed
 
-    feed.get(0, function (err, data) {
-      if (!decodeContent(err, data) && feed.blocks) feed.get(feed.blocks - 1, decodeContent)
+    noContent.get(feed.discoveryKey.toString('hex'), function (err) {
+      if (!err) return
+      feed.get(0, function (err, data) {
+        if (!decodeContent(err, data) && feed.blocks) feed.get(feed.blocks - 1, decodeContent)
+      })
     })
 
     return feed

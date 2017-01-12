@@ -78,9 +78,16 @@ Get a hypercore feed with all the changes of the archiver. The format of the mes
 }
 ```
 
-#### `ar.add(key, [callback])`
+#### `ar.add(key, [options], [callback])`
 
-Add a hypercore/hyperdrive key to backup
+Add a hypercore/hyperdrive key to backup.
+Options include
+
+``` js
+{
+  content: false // do not fetch the hyperdrive content, only metadata
+}
+```
 
 #### `ar.remove(key, [callback])`
 
