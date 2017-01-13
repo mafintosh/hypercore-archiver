@@ -90,20 +90,29 @@ function create (opts) {
     stream.on('open', onopen)
 
     if (!opts.passive) {
+      // non-passive mode, request all keys we currently have
       that.list().on('data', function (key) {
         open(key, true, stream)
       })
+
+      // TODO listen for newly-added feeds and request them too?
     }
 
+    // handler for requests from the other end
     function onopen (disc) {
+      // get the changes feed
       that.changes(function (_, feed) {
+        // was the changes feed requested?
         if (feed && feed.discoveryKey.toString('hex') === disc.toString('hex')) {
+          // replicate that
           feed.replicate({stream: stream})
           return
         }
 
+        // is it a feed we possess?
         keys.get(disc.toString('hex'), function (err, key) {
           if (err) return // ignore errors
+          // replicate that
           open(key, true, stream)
         })
       })
