@@ -126,7 +126,6 @@ function create (opts) {
     if (!opts) opts = {}
 
     key = datKeyAs.buf(key)
-    that.emit('add', key)
 
     var hex = hypercore.discoveryKey(key).toString('hex')
     keys.get(hex, function (err) {
@@ -138,18 +137,23 @@ function create (opts) {
 
     function done (err) {
       if (err) return cb(err)
-      keys.put(hex, key, cb)
+      keys.put(hex, key, function (err) {
+        if (!err) that.emit('add', key)
+        cb(err)
+      })
       append({type: 'add', key: key.toString('hex')})
     }
   }
 
   function remove (key, cb) {
     key = datKeyAs.buf(key)
-    that.emit('remove', key)
     var hex = hypercore.discoveryKey(key).toString('hex')
     keys.get(hex, function (err) {
       if (err) return cb()
-      keys.del(hex, cb)
+      keys.del(hex, function (err) {
+        if (!err) that.emit('remove', key)
+        cb(err)
+      })
       append({type: 'remove', key: key.toString('hex')})
     })
   }
