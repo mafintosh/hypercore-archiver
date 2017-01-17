@@ -111,7 +111,9 @@ function create (opts) {
 
         // is it a feed we possess?
         keys.get(disc.toString('hex'), function (err, key) {
-          if (err) return // ignore errors
+          if (err) {
+            return
+          }
           // replicate that
           open(key, true, stream)
         })
@@ -170,8 +172,11 @@ function create (opts) {
       })
       noContent.get(discKey, function (err) {
         if (!err) return done(null)
-        feed.get(0, function (err, data) {
-          if (err) return cb(err)
+        feed.get(0, {noWait: true}, function (err, data) {
+          if (err) {
+            if (err.notFound) return done(null)
+            return cb(err)
+          }
           var content = hyperdriveFeedKey(data)
           if (content || !feed.blocks) return done(content)
           feed.get(feed.blocks - 1, function (err, data) {
