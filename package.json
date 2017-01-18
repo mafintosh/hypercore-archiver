@@ -6,7 +6,7 @@
   "dependencies": {
     "dat-key-as": "^1.0.0",
     "end-of-stream": "^1.1.0",
-    "hypercore": "^4.11.0",
+    "hypercore": "^4.19.0",
     "hyperdrive-encoding": "^2.0.1",
     "level": "^1.5.0",
     "random-access-file": "^1.3.1",
