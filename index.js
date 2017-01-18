@@ -172,7 +172,7 @@ function create (opts) {
       })
       noContent.get(discKey, function (err) {
         if (!err) return done(null)
-        feed.get(0, {noWait: true}, function (err, data) {
+        feed.get(0, {wait: false}, function (err, data) {
           if (err) {
             if (err.notFound) return done(null)
             return cb(err)
