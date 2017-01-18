@@ -179,8 +179,11 @@ function create (opts) {
           }
           var content = hyperdriveFeedKey(data)
           if (content || !feed.blocks) return done(content)
-          feed.get(feed.blocks - 1, function (err, data) {
-            if (err) return cb(err)
+          feed.get(feed.blocks - 1, {wait: false}, function (err, data) {
+            if (err) {
+              if (err.notFound) return done(null)
+              return cb(err)
+            }
             done(hyperdriveFeedKey(data))
           })
         })
