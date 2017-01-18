@@ -40,16 +40,19 @@ function create (opts) {
     misc.get('changes', function (_, key) {
       var feed = core.createFeed(key)
 
-      if (key) return open()
-      misc.put('changes', feed.key, open)
-
-      function open (err) {
+      feed.open(function (err) {
         if (err) return cb(err)
-        feed.open(function (err) {
+        if (key) return cb(null, feed)
+
+        // force flush so we know the owner key is persisted
+        feed.flush(function (err) {
           if (err) return cb(err)
-          cb(null, feed)
+          misc.put('changes', feed.key, function (err) {
+            if (err) return cb(err)
+            cb(null, feed)
+          })
         })
-      }
+      })
     })
   })
 
