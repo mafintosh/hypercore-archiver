@@ -97,7 +97,12 @@ test('replicate to hypercore from archiver', function (t) {
 })
 
 test('remove existing key', function (t) {
-  t.plan(8)
+  t.plan(10)
+
+  archives.on('remove', function (key) {
+    t.pass('remove event')
+    t.same(key, feed.key, 'remove event with right key')
+  })
 
   archives.remove(feed.key, function (err) {
     t.ifError(err, 'remove error')
