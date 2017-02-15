@@ -1,5 +1,7 @@
 # hypercore-archiver
 
+[![Travis](https://img.shields.io/travis/mafintosh/hypercore-archiver/master.svg?style=flat-square)](https://travis-ci.org/mafintosh/hypercore-archiver) [![npm](https://img.shields.io/npm/v/hypercore-archiver.svg?style=flat-square)](https://npmjs.org/package/hypercore-archiver)
+
 A hypercore peer that will backup multiple hypercores/hyperdrives efficiently to disk.
 
 ```
