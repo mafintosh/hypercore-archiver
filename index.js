@@ -166,12 +166,12 @@ function create (opts) {
   function get (key, cb) {
     key = datKeyAs.buf(key)
     var discKey = hypercore.discoveryKey(key).toString('hex')
-    keys.get(discKey, function (err, key) {
+    keys.get(discKey, function (err, keyStr) {
       if (err) return cb(err) // no key found
 
-      key = datKeyAs.str(key)
+      keyStr = datKeyAs.str(key)
       var feed = core.createFeed(key, {
-        storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'))
+        storage: storage(path.join(dir, 'data', keyStr.slice(0, 2), keyStr.slice(2) + '.data'))
       })
       noContent.get(discKey, function (err) {
         if (!err) return done(null)
