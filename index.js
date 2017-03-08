@@ -23,6 +23,7 @@ function create (opts) {
   var misc = subleveldown(db, 'misc', {valueEncoding: 'binary'})
   var keys = subleveldown(db, 'added-keys', {valueEncoding: 'binary'})
   var noContent = subleveldown(db, 'no-content', {valueEncoding: 'binary'})
+  var sparse = subleveldown(db, 'spare', {valueEncoding: 'binary'})
   var core = hypercore(db)
   var opened = {}
   var that = new events.EventEmitter()
@@ -136,9 +137,15 @@ function create (opts) {
     keys.get(hex, function (err) {
       if (!err) return cb()
 
-      if (opts.content === false) noContent.put(hex, key, done)
-      else noContent.del(hex, key, done)
+      if (opts.content === false) noContent.put(hex, key, next)
+      else noContent.del(hex, key, next)
     })
+
+    function next (err) {
+      if (err) return cb(err)
+      if (opts.spare) sparse.put(hex, key, done)
+      else sparse.del(hex, key, done)
+    }
 
     function done (err) {
       if (err) return cb(err)
@@ -198,16 +205,19 @@ function create (opts) {
 
         if (!contentKey) return cb(null, feed)
 
-        contentKey = datKeyAs.str(contentKey)
-        var contentFeed = core.createFeed(contentKey, {
-          storage: storage(path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data'))
+        sparse.get(discKey, function (err) {
+          contentKey = datKeyAs.str(contentKey)
+          var contentFeed = core.createFeed(contentKey, {
+            storage: storage(path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data')),
+            sparse: !err
+          })
+          var contentDiscKey = hypercore.discoveryKey(contentKey).toString('hex')
+
+          if (!opened[contentDiscKey]) opened[contentDiscKey] = {feed: contentFeed, cnt: 0}
+          opened[contentDiscKey].cnt++
+
+          cb(null, feed, contentFeed)
         })
-        var contentDiscKey = hypercore.discoveryKey(contentKey).toString('hex')
-
-        if (!opened[contentDiscKey]) opened[contentDiscKey] = {feed: contentFeed, cnt: 0}
-        opened[contentDiscKey].cnt++
-
-        cb(null, feed, contentFeed)
       }
     })
   }

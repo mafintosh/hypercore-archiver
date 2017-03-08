@@ -87,7 +87,8 @@ Options include
 
 ``` js
 {
-  content: false // do not fetch the hyperdrive content, only metadata
+  content: false, // do not fetch the hyperdrive content, only metadata
+  sparse: true    // fetch only requested data
 }
 ```
 
