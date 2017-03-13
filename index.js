@@ -200,19 +200,19 @@ function create (opts) {
 
         contentKey = datKeyAs.str(contentKey)
         var contentFeed = core.createFeed(contentKey, {
-          storage: storage(path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data'))
+          storage: storage(path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data')),
+          sparse: opts.sparse
         })
         var contentDiscKey = hypercore.discoveryKey(contentKey).toString('hex')
 
         if (!opened[contentDiscKey]) opened[contentDiscKey] = {feed: contentFeed, cnt: 0}
         opened[contentDiscKey].cnt++
-
         cb(null, feed, contentFeed)
       }
     })
   }
 
-  function open (key, maybeContent, stream) {
+  function open (key, maybeContent, stream, isContent) {
     if (stream.destroyed) return
     key = datKeyAs.str(key)
 
@@ -224,7 +224,8 @@ function create (opts) {
 
     if (!feed) {
       old.feed = feed = core.createFeed(key, {
-        storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'))
+        storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data')),
+        sparse: opts.sparse && isContent
       })
     }
 
@@ -260,7 +261,7 @@ function create (opts) {
       if (err) return false
       var content = hyperdriveFeedKey(data)
       if (!content) return false
-      open(content, false, stream)
+      open(content, false, stream, true)
       return true
     }
   }
