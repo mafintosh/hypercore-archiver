@@ -55,7 +55,7 @@ pump(socket, feed.replicate(), socket)
 
 #### `var ar = archiver(dir|{ dir:, db:, storage: , sparse: })`
 
-Create a new archiver. Can pass the `dir` opt as a path to where data will be stored. Alternatively, can pass `db` as a level-up compatible instance (eg memdb). Can also pass a `storage` option, the [random-access-file](https://github.com/mafintosh/random-access-file) module or [random-access-memory](https://github.com/mafintosh/random-access-memory).
+Create a new archiver. Can pass the `dir` opt as a path to where data will be stored. Alternatively, can pass `db` as a level-up compatible instance (eg memdb). Can also pass a `storage` option, the [random-access-file](https://github.com/mafintosh/random-access-file) module, [random-access-page-files](https://github.com/mafintosh/random-access-page-files) for sparse mode or [random-access-memory](https://github.com/mafintosh/random-access-memory) for tests.
 
 Realistically there are a few specific use cases you'll want:
 
@@ -66,7 +66,7 @@ archiver('/where/data/goes')
 archiver({ dir: '/where/data/goes' })
 
 // sparse - for on-demand access to many dats
-archiver({ dir: '/where/art/thou/data', sparse: true })
+archiver({ dir: '/where/art/thou/data', sparse: true, storage: require('random-access-page-files'} })
 
 // for tests:
 archiver({ db: require('memdb')(), storage: require('random-access-memory') })
