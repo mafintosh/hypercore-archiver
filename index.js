@@ -23,7 +23,7 @@ function create (opts) {
   var misc = subleveldown(db, 'misc', {valueEncoding: 'binary'})
   var keys = subleveldown(db, 'added-keys', {valueEncoding: 'binary'})
   var noContent = subleveldown(db, 'no-content', {valueEncoding: 'binary'})
-  var core = hypercore(db)
+  var core = hypercore(storage)
   var opened = {}
   var that = new events.EventEmitter()
 
@@ -38,9 +38,9 @@ function create (opts) {
 
   that.changes = thunky(function (cb) {
     misc.get('changes', function (_, key) {
-      var feed = core.createFeed(key)
+      var feed = hypercore(storage, key)
 
-      feed.open(function (err) {
+      feed.on('open', function (err) {
         if (err) return cb(err)
         if (key) return cb(null, feed)
 
@@ -170,15 +170,13 @@ function create (opts) {
       if (err) return cb(err) // no key found
 
       key = datKeyAs.str(key)
-      var feed = core.createFeed(key, {
-        storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'))
-      })
+      var feed = hypercore(storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data')), key)
+
       noContent.get(discKey, function (err) {
         if (!err) return done(null)
         feed.get(0, {wait: false}, function (err, data) {
           if (err) {
-            if (err.notFound) return done(null)
-            return cb(err)
+            if (!err.notFound) return cb(err)
           }
           var content = hyperdriveFeedKey(data)
           if (content || !feed.blocks) return done(content)
@@ -199,10 +197,11 @@ function create (opts) {
         if (!contentKey) return cb(null, feed)
 
         contentKey = datKeyAs.str(contentKey)
-        var contentFeed = core.createFeed(contentKey, {
-          storage: storage(path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data')),
-          sparse: opts.sparse
-        })
+        var contentFeed = hypercore(
+          storage(path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data')),
+          contentKey,
+          {sparse: opts.sparse}
+        )
         var contentDiscKey = hypercore.discoveryKey(contentKey).toString('hex')
 
         if (!opened[contentDiscKey]) opened[contentDiscKey] = {feed: contentFeed, cnt: 0}
@@ -223,10 +222,11 @@ function create (opts) {
     opened[hex] = old
 
     if (!feed) {
-      old.feed = feed = core.createFeed(key, {
-        storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data')),
-        sparse: opts.sparse && isContent
-      })
+      old.feed = feed = hypercore(
+        storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data')),
+        key,
+        {sparse: opts.sparse && isContent}
+      )
     }
 
     old.cnt++
