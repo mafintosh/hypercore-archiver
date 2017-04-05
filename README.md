@@ -57,7 +57,7 @@ pump(socket, feed.replicate(), socket)
 
 Create a new archiver. Can pass the `dir` opt as a path to where data will be stored. Alternatively, can pass `db` as a level-up compatible instance (eg memdb). Can also pass a `storage` option, the [random-access-file](https://github.com/mafintosh/random-access-file) module or [random-access-memory](https://github.com/mafintosh/random-access-memory) for tests.
 
-Note: sparse file mode is not available on the Mac OSX filesystem, so use [random-access-page-files](https://github.com/mafintosh/random-access-page-files) to use a different file descriptor. This increases the number of file descriptors which isn't ideal.
+Note: sparse file mode (APFS) is not available on Mac OSX, so use [random-access-page-files](https://github.com/mafintosh/random-access-page-files) to use a different file descriptor. This increases the number of file descriptors which isn't ideal.
 
 Realistically there are a few specific use cases you'll want:
 
