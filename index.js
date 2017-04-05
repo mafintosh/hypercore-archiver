@@ -170,7 +170,7 @@ function create (opts) {
       if (err) return cb(err) // no key found
 
       key = datKeyAs.str(key)
-      var feed = hypercore(storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data')), key)
+      var feed = hypercore(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'), key)
 
       noContent.get(discKey, function (err) {
         if (!err) return done(null)
@@ -198,7 +198,7 @@ function create (opts) {
 
         contentKey = datKeyAs.str(contentKey)
         var contentFeed = hypercore(
-          storage(path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data')),
+          path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data'),
           contentKey,
           {sparse: opts.sparse}
         )
@@ -223,7 +223,7 @@ function create (opts) {
 
     if (!feed) {
       old.feed = feed = hypercore(
-        storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data')),
+        path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'),
         key,
         {sparse: opts.sparse && isContent}
       )
