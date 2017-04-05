@@ -9,8 +9,7 @@ var feed
 
 test('prep', function (t) {
   archives = archiver({ db: memdb(), storage: ram })
-  var core = hypercore(memdb())
-  feed = core.createFeed()
+  feed = hypercore(ram)
   t.end()
 })
 
