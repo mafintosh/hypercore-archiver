@@ -13,7 +13,7 @@ test('prep', function (t) {
 })
 
 test('add new feed key', function (t) {
-  t.plan(10)
+  t.plan(13)
 
   feed = hypercore(ram)
 
