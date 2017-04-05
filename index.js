@@ -40,7 +40,7 @@ function create (opts) {
     misc.get('changes', function (_, key) {
       var feed = hypercore(storage, key)
 
-      feed.on('open', function (err) {
+      feed.on('ready', function (err) {
         if (err) return cb(err)
         if (key) return cb(null, feed)
 
