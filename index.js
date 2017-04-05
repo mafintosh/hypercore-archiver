@@ -89,7 +89,7 @@ function create (opts) {
 
     stream.setTimeout(5000, stream.destroy)
     stream.setMaxListeners(0)
-    stream.on('open', onopen)
+    stream.on('feed', onopen)
 
     if (!opts.passive) {
       // non-passive mode, request all keys we currently have
@@ -103,6 +103,7 @@ function create (opts) {
     // handler for requests from the other end
     function onopen (disc) {
       // get the changes feed
+      console.log('open', disc)
       that.changes(function (_, feed) {
         // was the changes feed requested?
         if (feed && feed.discoveryKey.toString('hex') === disc.toString('hex')) {
@@ -212,6 +213,7 @@ function create (opts) {
   }
 
   function open (key, maybeContent, stream, isContent) {
+    console.log('open', key)
     if (stream.destroyed) return
     key = datKeyAs.str(key)
 
@@ -232,14 +234,17 @@ function create (opts) {
     old.cnt++
     var replicator = feed.replicate({stream: stream})
 
+    console.log('first download', feed.firstDownload)
     if (!feed.firstDownload) {
       var downloaded = false
 
       feed.firstDownload = true
       feed.once('download', function () {
+        console.log('downloaded')
         downloaded = true
       })
       replicator.on('end', function () {
+        console.log('end called')
         if (downloaded) that.emit('archived', feed.key, feed)
       })
     }

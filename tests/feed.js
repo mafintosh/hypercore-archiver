@@ -35,6 +35,7 @@ test('add new feed key', function (t) {
     })
 
     archives.once('archived', function (key, archivedFeed) {
+      console.log('archived called', key)
       t.same(key, feed.key, 'archived event key okay')
 
       archivedFeed.get(0, function (err, data) {
