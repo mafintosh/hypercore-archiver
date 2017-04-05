@@ -33,25 +33,25 @@ test('add new feed key', function (t) {
     archives.on('add', function (key) {
       t.same(key, feed.key, 'add event key okay')
     })
-    //
-    // archives.once('archived', function (key, archivedFeed) {
-    //   t.same(key, feed.key, 'archived event key okay')
-    //
-    //   archivedFeed.get(0, function (err, data) {
-    //     t.ifError(err, 'feed get error')
-    //     t.same(data.toString(), 'hello', 'feed block: 0 is correct')
-    //   })
-    // })
-    //
-    // archives.add(feed.key, function (err) {
-    //   t.ifError(err, 'add error')
-    //
-    //   archives.list(function (err, data) {
-    //     t.ifError(err, 'list error')
-    //     t.same(data.length, 1, 'archives.list has one key')
-    //     t.same(data[0], feed.key, 'archive.list has correct key')
-    //   })
-    // })
+
+    archives.once('archived', function (key, archivedFeed) {
+      t.same(key, feed.key, 'archived event key okay')
+
+      archivedFeed.get(0, function (err, data) {
+        t.ifError(err, 'feed get error')
+        t.same(data.toString(), 'hello', 'feed block: 0 is correct')
+      })
+    })
+
+    archives.add(feed.key, function (err) {
+      t.ifError(err, 'add error')
+
+      archives.list(function (err, data) {
+        t.ifError(err, 'list error')
+        t.same(data.length, 1, 'archives.list has one key')
+        t.same(data[0], feed.key, 'archive.list has correct key')
+      })
+    })
 
     replicate(archives, feed)
   })

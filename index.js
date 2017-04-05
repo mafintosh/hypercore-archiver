@@ -1,4 +1,5 @@
 var hypercore = require('hypercore')
+var protocol = require('hypercore-protocol')
 var level = require('level')
 var path = require('path')
 var raf = require('random-access-file')
@@ -23,13 +24,11 @@ function create (opts) {
   var misc = subleveldown(db, 'misc', {valueEncoding: 'binary'})
   var keys = subleveldown(db, 'added-keys', {valueEncoding: 'binary'})
   var noContent = subleveldown(db, 'no-content', {valueEncoding: 'binary'})
-  var core = hypercore(storage)
   var opened = {}
   var that = new events.EventEmitter()
 
   that.db = db
   that.discoveryKey = hypercore.discoveryKey
-  that.core = core
   that.list = list
   that.add = add
   that.remove = remove
@@ -86,7 +85,7 @@ function create (opts) {
   function replicate (opts) {
     if (!opts) opts = {}
 
-    var stream = core.replicate()
+    var stream = protocol(opts)
 
     stream.setTimeout(5000, stream.destroy)
     stream.setMaxListeners(0)
