@@ -176,7 +176,8 @@ function create (opts) {
         if (!err) return done(null)
         feed.get(0, {wait: false}, function (err, data) {
           if (err) {
-            if (!err.notFound) return cb(err)
+            if (err.notFound) return done(null)
+            return cb(err)
           }
           var content = hyperdriveFeedKey(data)
           if (content || !feed.blocks) return done(content)
