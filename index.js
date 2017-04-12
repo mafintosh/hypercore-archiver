@@ -180,8 +180,8 @@ function create (opts) {
             return cb(err)
           }
           var content = hyperdriveFeedKey(data)
-          if (content || !feed.blocks) return done(content)
-          feed.get(feed.blocks - 1, {wait: false}, function (err, data) {
+          if (content || !feed.length) return done(content)
+          feed.get(feed.length - 1, {wait: false}, function (err, data) {
             if (err) {
               if (err.notFound) return done(null)
               return cb(err)
@@ -256,7 +256,9 @@ function create (opts) {
     noContent.get(feed.discoveryKey.toString('hex'), function (err) {
       if (!err) return
       feed.get(0, function (err, data) {
-        if (!decodeContent(err, data) && feed.blocks) feed.get(feed.blocks - 1, decodeContent)
+        if (!decodeContent(err, data) && feed.length) {
+          feed.get(feed.length - 1, decodeContent)
+        }
       })
     })
 
@@ -264,6 +266,7 @@ function create (opts) {
 
     function decodeContent (err, data) {
       if (err) return false
+      console.log('got content', data.toString())
       var content = hyperdriveFeedKey(data)
       if (!content) return false
       open(content, false, stream, true)
