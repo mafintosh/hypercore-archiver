@@ -232,7 +232,7 @@ function create (opts) {
     }
 
     old.cnt++
-    var replicator = feed.replicate({stream: stream})
+    feed.replicate({stream: stream})
 
     console.log('first download', feed.firstDownload)
     if (!feed.firstDownload) {
@@ -243,7 +243,7 @@ function create (opts) {
         console.log('downloaded')
         downloaded = true
       })
-      replicator.on('end', function () {
+      feed.download({start: 0, end: 2}, function () {
         console.log('end called')
         if (downloaded) that.emit('archived', feed.key, feed)
       })
