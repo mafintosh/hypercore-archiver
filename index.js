@@ -240,11 +240,9 @@ function create (opts) {
 
       feed.firstDownload = true
       feed.once('download', function () {
-        console.log('downloaded')
         downloaded = true
       })
-      feed.download({start: 0, end: 2}, function () {
-        console.log('end called')
+      feed.on('sync', function () {
         if (downloaded) that.emit('archived', feed.key, feed)
       })
     }
