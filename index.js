@@ -103,7 +103,6 @@ function create (opts) {
     // handler for requests from the other end
     function onopen (disc) {
       // get the changes feed
-      console.log('open', disc)
       that.changes(function (_, feed) {
         // was the changes feed requested?
         if (feed && feed.discoveryKey.toString('hex') === disc.toString('hex')) {
@@ -213,7 +212,6 @@ function create (opts) {
   }
 
   function open (key, maybeContent, stream, isContent) {
-    console.log('open', key)
     if (stream.destroyed) return
     key = datKeyAs.str(key)
 
@@ -234,7 +232,6 @@ function create (opts) {
     old.cnt++
     feed.replicate({stream: stream})
 
-    console.log('first download', feed.firstDownload)
     if (!feed.firstDownload) {
       var downloaded = false
 
@@ -264,7 +261,6 @@ function create (opts) {
 
     function decodeContent (err, data) {
       if (err) return false
-      console.log('got content', data.toString())
       var content = hyperdriveFeedKey(data)
       if (!content) return false
       open(content, false, stream, true)
