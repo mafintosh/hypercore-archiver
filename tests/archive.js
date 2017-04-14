@@ -3,9 +3,8 @@ var fs = require('fs')
 var test = require('tape')
 var hyperdrive = require('hyperdrive')
 var ram = require('random-access-memory')
-var raf = require('random-access-file')
 var memdb = require('memdb')
-var encoding = require('hyperdrive-encoding')
+var messages = require('hyperdrive/lib/messages')
 var archiver = require('..')
 
 var archives
@@ -19,9 +18,7 @@ test('prep', function (t) {
 test('add new feed key', function (t) {
   t.plan(13)
 
-  var archive = hyperdrive(function (name) {
-    return raf(path.join(__dirname, name))
-  })
+  archive = hyperdrive(ram)
 
   archive.on('ready', function () {
     var stream = fs.createReadStream(path.join(__dirname, 'archive.js')).pipe(archive.createWriteStream('archive.js'))
@@ -47,11 +44,10 @@ test('add new feed key', function (t) {
         // metadata feed
         t.ok(key.equals(archive.key), 'archived metadata key okay')
 
-        archiveMeta.get(1, function (err, entry) {
+        archiveMeta.get(1, {valueEncoding: messages.Index}, function (err, entry) {
           // block #1 is first entry
-          entry = encoding.decode(entry)
           t.ifError(err, 'archiveMeta get error')
-          t.same(entry.name, 'archive.js', 'feed has archive.js entry')
+          t.same(entry.type, '/archive.js', 'feed has archive.js entry')
         })
       })
 

@@ -80,7 +80,7 @@ test('add duplicate feed key', function (t) {
 test('replicate to hypercore from archiver', function (t) {
   t.plan(4)
 
-  var clone = hypercore(ram)
+  var clone = hypercore(ram, feed.key)
 
   clone.get(0, function (err, data) {
     t.ifError(err, 'clone get error')
