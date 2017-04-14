@@ -19,7 +19,7 @@ function create (opts) {
 
   var dir = opts.dir || '.'
   var db = opts.db || level(path.join(dir, 'db'))
-  var storage = opts.storage || raf
+  var storage = opts.storage || function (name) { return path.join(dir, name) }
 
   var misc = subleveldown(db, 'misc', {valueEncoding: 'binary'})
   var keys = subleveldown(db, 'added-keys', {valueEncoding: 'binary'})
@@ -37,7 +37,7 @@ function create (opts) {
 
   that.changes = thunky(function (cb) {
     misc.get('changes', function (_, key) {
-      var feed = hypercore(storage, key)
+      var feed = hypercore(storage('meta-feed'), key)
 
       feed.on('ready', function (err) {
         if (err) return cb(err)
@@ -169,7 +169,7 @@ function create (opts) {
       if (err) return cb(err) // no key found
 
       key = datKeyAs.str(key)
-      var feed = hypercore(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'), key)
+      var feed = hypercore(storage(path.join('data', key.slice(0, 2), key.slice(2) + '.data')), key)
 
       noContent.get(discKey, function (err) {
         if (!err) return done(null)
@@ -198,7 +198,7 @@ function create (opts) {
 
         contentKey = datKeyAs.str(contentKey)
         var contentFeed = hypercore(
-          path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data'),
+          storage(path.join('data', contentKey.slice(0, 2), contentKey.slice(2) + '.data')),
           contentKey,
           {sparse: opts.sparse}
         )
@@ -223,7 +223,7 @@ function create (opts) {
 
     if (!feed) {
       old.feed = feed = hypercore(
-        path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'),
+        storage(path.join('data', key.slice(0, 2), key.slice(2) + '.data')),
         key,
         {sparse: opts.sparse && isContent}
       )
