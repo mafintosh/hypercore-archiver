@@ -14,9 +14,11 @@ test('prep', function (t) {
 })
 
 test('add key as string', function (t) {
-  archives.add(feed.key.toString('hex'), function (err) {
-    t.ifError(err, 'okay adding string key')
-    t.end()
+  feed.ready(function () {
+    archives.add(feed.key.toString('hex'), function (err) {
+      t.ifError(err, 'okay adding string key')
+      t.end()
+    })
   })
 })
 
