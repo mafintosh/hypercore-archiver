@@ -5,18 +5,22 @@ var hyperdrive = require('hyperdrive')
 var ram = require('random-access-memory')
 var memdb = require('memdb')
 var messages = require('hyperdrive/lib/messages')
+var rimraf = require('rimraf')
 var archiver = require('..')
+var tmp = path.join(__dirname, 'tmp')
 
 var archives
 var archive
 
 test('prep', function (t) {
-  archives = archiver({ db: memdb(), storage: ram })
-  t.end()
+  rimraf(tmp, function () {
+    archives = archiver({ db: memdb(), dir: tmp })
+    t.end()
+  })
 })
 
 test('add new feed key', function (t) {
-  t.plan(15)
+  t.plan(19)
 
   archive = hyperdrive(ram)
 
@@ -49,19 +53,23 @@ test('add new feed key', function (t) {
           t.ifError(err, 'archiveMeta get error')
           t.same(entry.type, '/archive.js', 'feed has archive.js entry')
         })
+
+        archives.get(archive.key, function (err, meta, content) {
+          t.ifError(err, 'get error')
+          t.ok(meta, 'has meta')
+          t.ok(content, 'has content')
+        })
       })
 
-      archives.add(archive.key.toString('hex'), function (err) {
+      archives.add(archive.key, function (err) {
         t.ifError(err, 'add error')
 
-        archives.get(archive.key.toString('hex'), function (err, metadata, content) {
-          t.ifError(err, 'get error')
+        archive.stat('archive.js', function (err, stat) {
+          t.ifError(err, 'no err')
 
-          var clone = hyperdrive(ram, {metadata, content})
-
-          clone.readFile('archive.js', function (err, file) {
+          archive.readFile('archive.js', function (err, file) {
             t.ifError(err, 'no err')
-            console.log(file)
+            t.equals(file.length, stat.size, 'size is same')
           })
         })
 
@@ -118,6 +126,12 @@ test('remove existing key', function (t) {
       t.ifError(err, 'list error')
       t.same(data.length, 0, 'archives.list does not have any keys')
     })
+  })
+})
+
+test('cleanup', function (t) {
+  rimraf(tmp, function () {
+    t.end()
   })
 })
 
