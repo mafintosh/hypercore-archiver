@@ -2,8 +2,7 @@ var hypercore = require('hypercore')
 var protocol = require('hypercore-protocol')
 var level = require('level')
 var path = require('path')
-var raf = require('random-access-file')
-var encoding = require('hyperdrive/lib/messages')
+var messages = require('hyperdrive/lib/messages')
 var subleveldown = require('subleveldown')
 var collect = require('stream-collector')
 var eos = require('end-of-stream')
@@ -19,7 +18,10 @@ function create (opts) {
 
   var dir = opts.dir || '.'
   var db = opts.db || level(path.join(dir, 'db'))
-  var storage = opts.storage || function (name) { return path.join(dir, name) }
+  var storage = function (name) {
+    if (opts.storage) return opts.storage
+    return path.join(dir, name)
+  }
 
   var misc = subleveldown(db, 'misc', {valueEncoding: 'binary'})
   var keys = subleveldown(db, 'added-keys', {valueEncoding: 'binary'})
@@ -173,19 +175,25 @@ function create (opts) {
 
       noContent.get(discKey, function (err) {
         if (!err) return done(null)
-        feed.get(0, {wait: false}, function (err, data) {
+        feed.get(0, {
+          wait: false,
+          valueEncoding: messages.Index
+        }, function (err, data) {
           if (err) {
             if (err.notFound) return done(null)
             return cb(err)
           }
-          var content = hyperdriveFeedKey(data)
+          var content = data.content
           if (content || !feed.length) return done(content)
-          feed.get(feed.length - 1, {wait: false}, function (err, data) {
-            if (err) {
+          feed.get(feed.length - 1, {
+            wait: false,
+            valueEncoding: messages.Index
+          }, function (err, data) {
+            if (err || !data.content) {
               if (err.notFound) return done(null)
               return cb(err)
             }
-            done(hyperdriveFeedKey(data))
+            done(data)
           })
         })
       })
@@ -250,9 +258,9 @@ function create (opts) {
 
     noContent.get(feed.discoveryKey.toString('hex'), function (err) {
       if (!err) return
-      feed.get(0, function (err, data) {
+      feed.get(0, {valueEncoding: messages.Index}, function (err, data) {
         if (!decodeContent(err, data) && feed.length) {
-          feed.get(feed.length - 1, decodeContent)
+          feed.get(feed.length - 1, {valueEncoding: messages.Index}, decodeContent)
         }
       })
     })
@@ -261,21 +269,10 @@ function create (opts) {
 
     function decodeContent (err, data) {
       if (err) return false
-      var content = hyperdriveFeedKey(data)
+      var content = data.content
       if (!content) return false
       open(content, false, stream, true)
       return true
     }
-  }
-}
-
-function hyperdriveFeedKey (data) {
-  try {
-    var index = encoding.decode(data)
-    if (index.type !== 'index') return null
-    if (!index.content || index.content.length !== 32) return null
-    return index.content
-  } catch (err) {
-    return null
   }
 }
