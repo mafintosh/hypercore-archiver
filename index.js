@@ -176,24 +176,24 @@ function create (opts) {
       noContent.get(discKey, function (err) {
         if (!err) return done(null)
         feed.get(0, {
-          wait: false,
-          valueEncoding: messages.Index
+          wait: false
         }, function (err, data) {
           if (err) {
             if (err.notFound) return done(null)
             return cb(err)
           }
-          var content = data.content
-          if (content || !feed.length) return done(content)
+          var decoded = tryHyperdrive(data)
+          if (decoded.content || !feed.length) return done(decoded.content)
           feed.get(feed.length - 1, {
-            wait: false,
-            valueEncoding: messages.Index
+            wait: false
           }, function (err, data) {
-            if (err || !data.content) {
+            if (err) {
               if (err.notFound) return done(null)
               return cb(err)
             }
-            done(data)
+            decoded = tryHyperdrive(data)
+            if (decoded.content) return done(decoded.content)
+            return done(decoded)
           })
         })
       })
@@ -258,21 +258,30 @@ function create (opts) {
 
     noContent.get(feed.discoveryKey.toString('hex'), function (err) {
       if (!err) return
-      feed.get(0, {valueEncoding: messages.Index}, function (err, data) {
-        if (!decodeContent(err, data) && feed.length) {
-          feed.get(feed.length - 1, {valueEncoding: messages.Index}, decodeContent)
+      feed.get(0, function (err, data) {
+        if (!openContent(err, data) && feed.length) {
+          feed.get(feed.length - 1, openContent)
         }
       })
     })
 
     return feed
 
-    function decodeContent (err, data) {
+    function openContent (err, data) {
       if (err) return false
-      var content = data.content
+      var encoded = tryHyperdrive(data)
+      var content = encoded.content
       if (!content) return false
       open(content, false, stream, true)
       return true
+    }
+  }
+
+  function tryHyperdrive (data) {
+    try {
+      return messages.Index.decode(data)
+    } catch (e) {
+      return data
     }
   }
 }
