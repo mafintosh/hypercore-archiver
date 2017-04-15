@@ -16,7 +16,7 @@ test('prep', function (t) {
 })
 
 test('add new feed key', function (t) {
-  t.plan(13)
+  t.plan(15)
 
   archive = hyperdrive(ram)
 
@@ -53,6 +53,17 @@ test('add new feed key', function (t) {
 
       archives.add(archive.key.toString('hex'), function (err) {
         t.ifError(err, 'add error')
+
+        archives.get(archive.key.toString('hex'), function (err, metadata, content) {
+          t.ifError(err, 'get error')
+
+          var clone = hyperdrive(ram, {metadata, content})
+
+          clone.readFile('archive.js', function (err, file) {
+            t.ifError(err, 'no err')
+            console.log(file)
+          })
+        })
 
         archives.list(function (err, data) {
           t.ifError(err, 'list error')
