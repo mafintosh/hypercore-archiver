@@ -94,6 +94,34 @@ test('replicate to hypercore from archiver', function (t) {
   replicate(clone, archives)
 })
 
+test('replicate two hypercores from archiver', function (t) {
+  t.plan(4)
+
+  var one = hypercore(ram)
+  var two = hypercore(ram, one.key)
+
+  var three = hypercore(ram)
+  var four = hypercore(ram, three.key)
+
+  one.append(['hello', 'world'], function () {
+    two.get(0, function (err, data) {
+      t.ifError(err, 'clone get error')
+      t.same(data.toString(), 'hello', 'clone receives feed data')
+    })
+  })
+
+  three.append(['hello', 'world'], function () {
+    four.get(0, function (err, data) {
+      t.ifError(err, 'clone get error')
+      t.same(data.toString(), 'hello', 'clone receives feed data')
+    })
+  })
+  replicate(one, archives)
+  replicate(two, archives)
+  replicate(three, archives)
+  replicate(four, archives)
+})
+
 test('remove existing key', function (t) {
   t.plan(10)
 
