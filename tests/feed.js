@@ -95,31 +95,37 @@ test('replicate to hypercore from archiver', function (t) {
 })
 
 test('replicate two hypercores from archiver', function (t) {
-  t.plan(4)
+  t.plan(6)
+  // Don't mess up other tests
+  var thisArchives = archiver({ db: memdb(), storage: ram })
 
   var one = hypercore(ram)
-  var two = hypercore(ram, one.key)
-
-  var three = hypercore(ram)
-  var four = hypercore(ram, three.key)
+  var two = hypercore(ram)
+  // var four = hypercore(ram, three.key)
 
   one.append(['hello', 'world'], function () {
-    two.get(0, function (err, data) {
-      t.ifError(err, 'clone get error')
-      t.same(data.toString(), 'hello', 'clone receives feed data')
+    thisArchives.add(one.key, function (err) {
+      t.error(err, 'error')
     })
+    replicate(one, thisArchives)
   })
 
-  three.append(['hello', 'world'], function () {
-    four.get(0, function (err, data) {
+  two.append(['hello', 'world'], function () {
+    thisArchives.add(two.key, function (err) {
+      t.error(err, 'error')
+    })
+    replicate(two, thisArchives)
+  })
+
+  thisArchives.on('archived', function (key) {
+    console.log('archived', key.toString('hex'))
+    var clone = hypercore(ram, key)
+    clone.get(0, function (err, data) {
       t.ifError(err, 'clone get error')
       t.same(data.toString(), 'hello', 'clone receives feed data')
     })
+    replicate(clone, thisArchives)
   })
-  replicate(one, archives)
-  replicate(two, archives)
-  replicate(three, archives)
-  replicate(four, archives)
 })
 
 test('remove existing key', function (t) {
