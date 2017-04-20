@@ -165,7 +165,8 @@ function create (opts) {
     })
   }
 
-  function get (key, cb) {
+  function get (key, opts, cb) {
+    if (typeof opts === 'function') return get(key, {wait: false}, opts)
     key = datKeyAs.buf(key)
     var discKey = hypercore.discoveryKey(key).toString('hex')
     keys.get(discKey, function (err, key) {
@@ -176,18 +177,14 @@ function create (opts) {
 
       noContent.get(discKey, function (err) {
         if (!err) return done(null)
-        feed.get(0, {
-          wait: false
-        }, function (err, data) {
+        feed.get(0, opts, function (err, data) {
           if (err) {
             if (err.notFound) return done(null)
             return cb(err)
           }
           var decoded = tryHyperdrive(data)
           if (decoded.content || !feed.length) return done(decoded.content)
-          feed.get(feed.length - 1, {
-            wait: false
-          }, function (err, data) {
+          feed.get(feed.length - 1, opts, function (err, data) {
             if (err) {
               if (err.notFound) return done(null)
               return cb(err)
