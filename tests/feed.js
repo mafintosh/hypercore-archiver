@@ -95,7 +95,7 @@ test('replicate to hypercore from archiver', function (t) {
 })
 
 test('replicate two hypercores from archiver', function (t) {
-  t.plan(6)
+  t.plan(4)
   // Don't mess up other tests
   var thisArchives = archiver({ db: memdb(), storage: ram })
 
