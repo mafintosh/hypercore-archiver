@@ -118,7 +118,6 @@ function create (opts) {
           if (err) {
             return
           }
-          console.log('openening', key.toString('hex'))
           // replicate that
           open(key, true, stream)
         })
@@ -226,8 +225,6 @@ function create (opts) {
     var feed = old.feed
 
     opened[hex] = old
-
-    console.log('feed', key, !!feed)
 
     if (!feed) {
       old.feed = feed = hypercore(
