@@ -1,8 +1,8 @@
 var hypercore = require('hypercore')
+var protocol = require('hypercore-protocol')
 var level = require('level')
 var path = require('path')
-var raf = require('random-access-file')
-var encoding = require('hyperdrive-encoding')
+var messages = require('hyperdrive/lib/messages')
 var subleveldown = require('subleveldown')
 var collect = require('stream-collector')
 var eos = require('end-of-stream')
@@ -18,18 +18,19 @@ function create (opts) {
 
   var dir = opts.dir || '.'
   var db = opts.db || level(path.join(dir, 'db'))
-  var storage = opts.storage || raf
+  var storage = function (name) {
+    if (opts.storage) return opts.storage
+    return path.join(dir, name)
+  }
 
   var misc = subleveldown(db, 'misc', {valueEncoding: 'binary'})
   var keys = subleveldown(db, 'added-keys', {valueEncoding: 'binary'})
   var noContent = subleveldown(db, 'no-content', {valueEncoding: 'binary'})
-  var core = hypercore(db)
   var opened = {}
   var that = new events.EventEmitter()
 
   that.db = db
   that.discoveryKey = hypercore.discoveryKey
-  that.core = core
   that.list = list
   that.add = add
   that.remove = remove
@@ -38,9 +39,9 @@ function create (opts) {
 
   that.changes = thunky(function (cb) {
     misc.get('changes', function (_, key) {
-      var feed = core.createFeed(key)
+      var feed = hypercore(storage('meta-feed'), key)
 
-      feed.open(function (err) {
+      feed.on('ready', function (err) {
         if (err) return cb(err)
         if (key) return cb(null, feed)
 
@@ -86,11 +87,11 @@ function create (opts) {
   function replicate (opts) {
     if (!opts) opts = {}
 
-    var stream = core.replicate()
+    var stream = protocol(opts)
 
     stream.setTimeout(5000, stream.destroy)
     stream.setMaxListeners(0)
-    stream.on('open', onopen)
+    stream.on('feed', onopen)
 
     if (!opts.passive) {
       // non-passive mode, request all keys we currently have
@@ -163,31 +164,33 @@ function create (opts) {
     })
   }
 
-  function get (key, cb) {
+  function get (key, opts, cb) {
+    if (typeof opts === 'function') return get(key, {wait: false}, opts)
     key = datKeyAs.buf(key)
     var discKey = hypercore.discoveryKey(key).toString('hex')
     keys.get(discKey, function (err, key) {
       if (err) return cb(err) // no key found
 
       key = datKeyAs.str(key)
-      var feed = core.createFeed(key, {
-        storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'))
-      })
+      var feed = hypercore(storage(path.join('data', key.slice(0, 2), key.slice(2) + '.data')), key)
+
       noContent.get(discKey, function (err) {
         if (!err) return done(null)
-        feed.get(0, {wait: false}, function (err, data) {
+        feed.get(0, opts, function (err, data) {
           if (err) {
             if (err.notFound) return done(null)
             return cb(err)
           }
-          var content = hyperdriveFeedKey(data)
-          if (content || !feed.blocks) return done(content)
-          feed.get(feed.blocks - 1, {wait: false}, function (err, data) {
+          var decoded = tryHyperdrive(data)
+          if (decoded.content || !feed.length) return done(decoded.content)
+          feed.get(feed.length - 1, opts, function (err, data) {
             if (err) {
               if (err.notFound) return done(null)
               return cb(err)
             }
-            done(hyperdriveFeedKey(data))
+            decoded = tryHyperdrive(data)
+            if (decoded.content) return done(decoded.content)
+            return done(decoded)
           })
         })
       })
@@ -199,10 +202,11 @@ function create (opts) {
         if (!contentKey) return cb(null, feed)
 
         contentKey = datKeyAs.str(contentKey)
-        var contentFeed = core.createFeed(contentKey, {
-          storage: storage(path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data')),
-          sparse: opts.sparse
-        })
+        var contentFeed = hypercore(
+          storage(path.join('data', contentKey.slice(0, 2), contentKey.slice(2) + '.data')),
+          contentKey,
+          {sparse: opts.sparse}
+        )
         var contentDiscKey = hypercore.discoveryKey(contentKey).toString('hex')
 
         if (!opened[contentDiscKey]) opened[contentDiscKey] = {feed: contentFeed, cnt: 0}
@@ -223,10 +227,11 @@ function create (opts) {
     opened[hex] = old
 
     if (!feed) {
-      old.feed = feed = core.createFeed(key, {
-        storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data')),
-        sparse: opts.sparse && isContent
-      })
+      old.feed = feed = hypercore(
+        storage(path.join('data', key.slice(0, 2), key.slice(2) + '.data')),
+        key,
+        {sparse: opts.sparse && isContent}
+      )
     }
 
     old.cnt++
@@ -239,7 +244,7 @@ function create (opts) {
       feed.once('download', function () {
         downloaded = true
       })
-      feed.once('download-finished', function () {
+      feed.on('sync', function () {
         if (downloaded) that.emit('archived', feed.key, feed)
       })
     }
@@ -251,29 +256,29 @@ function create (opts) {
     noContent.get(feed.discoveryKey.toString('hex'), function (err) {
       if (!err) return
       feed.get(0, function (err, data) {
-        if (!decodeContent(err, data) && feed.blocks) feed.get(feed.blocks - 1, decodeContent)
+        if (!openContent(err, data) && feed.length) {
+          feed.get(feed.length - 1, openContent)
+        }
       })
     })
 
     return feed
 
-    function decodeContent (err, data) {
+    function openContent (err, data) {
       if (err) return false
-      var content = hyperdriveFeedKey(data)
+      var encoded = tryHyperdrive(data)
+      var content = encoded.content
       if (!content) return false
       open(content, false, stream, true)
       return true
     }
   }
-}
 
-function hyperdriveFeedKey (data) {
-  try {
-    var index = encoding.decode(data)
-    if (index.type !== 'index') return null
-    if (!index.content || index.content.length !== 32) return null
-    return index.content
-  } catch (err) {
-    return null
+  function tryHyperdrive (data) {
+    try {
+      return messages.Index.decode(data)
+    } catch (e) {
+      return data
+    }
   }
 }

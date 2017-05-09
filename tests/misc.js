@@ -9,15 +9,16 @@ var feed
 
 test('prep', function (t) {
   archives = archiver({ db: memdb(), storage: ram })
-  var core = hypercore(memdb())
-  feed = core.createFeed()
+  feed = hypercore(ram)
   t.end()
 })
 
 test('add key as string', function (t) {
-  archives.add(feed.key.toString('hex'), function (err) {
-    t.ifError(err, 'okay adding string key')
-    t.end()
+  feed.ready(function () {
+    archives.add(feed.key.toString('hex'), function (err) {
+      t.ifError(err, 'okay adding string key')
+      t.end()
+    })
   })
 })
 

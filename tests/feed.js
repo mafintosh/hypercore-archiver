@@ -15,8 +15,7 @@ test('prep', function (t) {
 test('add new feed key', function (t) {
   t.plan(13)
 
-  var core = hypercore(memdb())
-  feed = core.createFeed()
+  feed = hypercore(ram)
 
   feed.append(['hello', 'world'], function () {
     archives.changes(function (err, changeFeed) {
@@ -24,7 +23,7 @@ test('add new feed key', function (t) {
 
       changeFeed.get(0, function (err, data) {
         t.ifError(err, 'changes feed get error')
-        t.same(changeFeed.blocks, 1, 'one block in change feed')
+        t.same(changeFeed.length, 1, 'one block in change feed')
         data = JSON.parse(data)
         t.same(data.key, feed.key.toString('hex'), 'changes key okay')
         t.same(data.type, 'add', 'changes type add')
@@ -72,7 +71,7 @@ test('add duplicate feed key', function (t) {
 
     archives.changes(function (err, changeFeed) {
       t.ifError(err, 'changes error')
-      t.same(changeFeed.blocks, 1, 'one block still in changeFeed')
+      t.same(changeFeed.length, 1, 'one block still in changeFeed')
     })
   })
 })
@@ -80,8 +79,7 @@ test('add duplicate feed key', function (t) {
 test('replicate to hypercore from archiver', function (t) {
   t.plan(4)
 
-  var core = hypercore(memdb())
-  var clone = core.createFeed(feed.key)
+  var clone = hypercore(ram, feed.key)
 
   clone.get(0, function (err, data) {
     t.ifError(err, 'clone get error')
@@ -94,6 +92,40 @@ test('replicate to hypercore from archiver', function (t) {
   })
 
   replicate(clone, archives)
+})
+
+test('replicate two hypercores from archiver', function (t) {
+  t.plan(4)
+  // Don't mess up other tests
+  var thisArchives = archiver({ db: memdb(), storage: ram })
+
+  var one = hypercore(ram)
+  var two = hypercore(ram)
+  // var four = hypercore(ram, three.key)
+
+  one.append(['hello', 'world'], function () {
+    thisArchives.add(one.key, function (err) {
+      t.error(err, 'error')
+    })
+    replicate(one, thisArchives)
+  })
+
+  two.append(['hello', 'world'], function () {
+    thisArchives.add(two.key, function (err) {
+      t.error(err, 'error')
+    })
+    replicate(two, thisArchives)
+  })
+
+  thisArchives.on('archived', function (key) {
+    console.log('archived', key.toString('hex'))
+    var clone = hypercore(ram, key)
+    clone.get(0, function (err, data) {
+      t.ifError(err, 'clone get error')
+      t.same(data.toString(), 'hello', 'clone receives feed data')
+    })
+    replicate(clone, thisArchives)
+  })
 })
 
 test('remove existing key', function (t) {
@@ -112,7 +144,7 @@ test('remove existing key', function (t) {
 
       changeFeed.get(1, function (err, data) {
         t.ifError(err, 'change feed get block err')
-        t.same(changeFeed.blocks, 2, 'two blocks in changeFeed')
+        t.same(changeFeed.length, 2, 'two blocks in changeFeed')
         data = JSON.parse(data)
         t.same(data.type, 'remove', 'change type is removed')
         t.same(data.key, feed.key.toString('hex'), 'change has correct key')
