@@ -1,115 +1,107 @@
 # hypercore-archiver
 
-[![Travis](https://img.shields.io/travis/mafintosh/hypercore-archiver/master.svg?style=flat-square)](https://travis-ci.org/mafintosh/hypercore-archiver) [![npm](https://img.shields.io/npm/v/hypercore-archiver.svg?style=flat-square)](https://npmjs.org/package/hypercore-archiver)
-
-A hypercore peer that will backup multiple hypercores/hyperdrives efficiently to disk.
-
-```
-npm install hypercore-archiver
-```
+Easily archive multiple hypercores or hyperdrives
 
 ## Usage
 
-First create a hypercore/hyperdrive somewhere
-
 ``` js
-var hypercore = require('hypercore')
-var memdb = require('memdb')
-
-// create a hypercore feed
-var feed = hypercore(memdb()).createFeed()
-
-// append some data
-feed.append(['hello', 'world'])
-
-console.log('add this key to the archiver:', feed.key.toString('hex'))
-```
-
-Setup the archiver
-
-``` js
-var net = require('net')
-var pump = require('pump')
 var archiver = require('hypercore-archiver')
-var ar = archiver({ dir: './some-folder' })
+var hypercore = require('hypercore')
 
-// add a hypercore/hyperdrive key whose content you want to archive
-ar.add(keyPrintedAbove)
+var ar = archiver('./my-archiver') // also supports passing in a storage provider
+var feed = hypercore('./my-feed')
 
-// serve the archiver over some stream
-var server = net.createServer(function (socket) {
-  pump(socket, ar.replicate(), socket)
+feed.on('ready', function () {
+  ar.add(feed.key, function (err) {
+    console.log('will now archive the feed')
+  })
 })
 
-server.listen(10000)
-```
+ar.on('sync', function (feed) {
+  console.log('feed is synced', feed.key)
+})
 
-Have the client connect to the archiver
+// setup replication
+var stream = ar.replicate()
+stream.pipe(feed.replicate({live: true})).pipe(stream)
 
-``` js
-var socket = net.connect(10000)
-pump(socket, feed.replicate(), socket)
+feed.append(['hello', 'world'])
 ```
 
 ## API
 
-#### `var ar = archiver(dir|{ dir:, db:, storage: , sparse: })`
+#### `var ar = archiver(storage, [key], [options])`
 
-Create a new archiver. Can pass the `dir` opt as a path to where data will be stored. Alternatively, can pass `db` as a level-up compatible instance (eg memdb). Can also pass a `storage` option, the [random-access-file](https://github.com/mafintosh/random-access-file) module or [random-access-memory](https://github.com/mafintosh/random-access-memory).
+Create a new archvier. `storage` can be a file system path or a storage provider like [random-access-memory](https://github.com/mafintosh/random-access-memory).
 
-Realistically there are a few specific use cases you'll want:
+If this archiver is a clone of another archiver pass the changes feed key as the 2nd argument.
 
-```js
-// for production:
-archiver('/where/data/goes')
-// which is the same as:
-archiver({ dir: '/where/data/goes' })
-
-// sparse - for on-demand access to many dats
-archiver({ dir: '/where/art/thou/data', sparse: true })
-
-// for tests:
-archiver({ db: require('memdb')(), storage: require('random-access-memory') })
-```
-
-#### `ar.changes(callback)`
-
-Get a hypercore feed with all the changes of the archiver. The format of the messages are JSON and look like this
-
-``` js
-{
-  type: 'add' | 'remove',
-  key: 'key-added-or-removed-in-hex'
-}
-```
-
-#### `ar.add(key, [options], [callback])`
-
-Add a hypercore/hyperdrive key to backup.
 Options include
 
 ``` js
 {
-  content: false // do not fetch the hyperdrive content, only metadata
+  sparse: false // set to true to only archive blocks you request
 }
 ```
 
+#### `ar.add(key, [callback])`
+
+Add a new hypercore or hyperdrive key to be archived.
+
 #### `ar.remove(key, [callback])`
 
-Remove a key from the backup
+Remove a key.
+
+#### `ar.list(callback)`
+
+List all hypercores and hyperdrives being archived.
 
 #### `ar.get(key, callback)`
 
-Get the feed(s) for a given key. Callback will return `(err, feed)`. If the key is an archive, the callback returns `callback(err, metadataFeed, contentFeed)` which can be used in hyperdrive to create an archive.
+Retrieve the feed being archived. If the key points to a hyperdrive the callback is called with `(err, metadataFeed, contentFeed)`
 
-#### `var stream = ar.list([callback])`
+#### `ar.changes`
 
-List all keys currently being backed up
+A changes feed containing the archiver state. Pass the changes feed key to another hypercore archiver to replicate the archiver and all feeds
 
-#### `var stream = ar.replicate()`
+#### `var stream = ar.replicate([options])`
 
-Create a replication stream. You need to pipe this to another hypercore replication stream somewhere.
-If the other peer wants to replicate a key we are backing up it'll be served to them.
+Create a replication stream. Per defaults the archiver will replicate any feed the remote asks for.
+To have the archiver ask to replicate one pass in `{key: feedKey}` as an option.
+
+#### `ar.on('add', feed)`
+
+Emitted when a feed is being added
+
+#### `ar.on('remove', feed)
+
+Emitted when a feed is being removed
+
+#### `ar.on('sync', feed)`
+
+Emitted when a feed has been fully synced
+
+#### `ar.on('download', feed, index, data, peer)`
+
+Emitted when the archiver downloads a block of data
+
+#### `ar.on('upload', feed, index, data, peer)`
+
+Emitted when the archiver uploads a block of data
+
+#### `ar.on('ready')`
+
+Emitted when all internal state has been loaded (the changes feed will be set). You do not have to wait for this event before calling any async function.
+
+## Network Swarm
+
+The archiver comes with a network swarm as well. This will make the archiver replicate over the internet and local network.
+To use it do:
+
+``` js
+var swarm = require('hypercore-archiver/swarm')
+swarm(archiver)
+```
 
 ## License
 

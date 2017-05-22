@@ -1,279 +1,374 @@
 var hypercore = require('hypercore')
-var level = require('level')
+var protocol = require('hypercore-protocol')
 var path = require('path')
 var raf = require('random-access-file')
-var encoding = require('hyperdrive-encoding')
-var subleveldown = require('subleveldown')
-var collect = require('stream-collector')
-var eos = require('end-of-stream')
-var events = require('events')
-var datKeyAs = require('dat-key-as')
 var thunky = require('thunky')
+var toBuffer = require('to-buffer')
+var util = require('util')
+var events = require('events')
 
-module.exports = create
+module.exports = Archiver
 
-function create (opts) {
-  opts = opts || {}
-  if (typeof opts === 'string') opts = { dir: opts }
+function Archiver (storage, key, opts) {
+  if (!(this instanceof Archiver)) return new Archiver(storage, key, opts)
+  events.EventEmitter.call(this)
 
-  var dir = opts.dir || '.'
-  var db = opts.db || level(path.join(dir, 'db'))
-  var storage = opts.storage || raf
+  if (key && typeof key !== 'string' && !Buffer.isBuffer(key)) {
+    opts = key
+    key = null
+  }
+  if (!opts) opts = {}
 
-  var misc = subleveldown(db, 'misc', {valueEncoding: 'binary'})
-  var keys = subleveldown(db, 'added-keys', {valueEncoding: 'binary'})
-  var noContent = subleveldown(db, 'no-content', {valueEncoding: 'binary'})
-  var core = hypercore(db)
-  var opened = {}
-  var that = new events.EventEmitter()
+  var self = this
 
-  that.db = db
-  that.discoveryKey = hypercore.discoveryKey
-  that.core = core
-  that.list = list
-  that.add = add
-  that.remove = remove
-  that.get = get
-  that.replicate = replicate
+  this.storage = defaultStorage(storage)
+  this.changes = hypercore(this.storage.changes, key, {valueEncoding: 'json'})
+  this.sparse = !!opts.sparse
+  this.feeds = {}
+  this.archives = {}
+  this._ondownload = ondownload
+  this._onupload = onupload
+  this.ready = thunky(open)
+  this.ready()
 
-  that.changes = thunky(function (cb) {
-    misc.get('changes', function (_, key) {
-      var feed = core.createFeed(key)
-
-      feed.open(function (err) {
-        if (err) return cb(err)
-        if (key) return cb(null, feed)
-
-        // force flush so we know the owner key is persisted
-        feed.flush(function (err) {
-          if (err) return cb(err)
-          misc.put('changes', feed.key, function (err) {
-            if (err) return cb(err)
-            cb(null, feed)
-          })
-        })
-      })
-    })
-  })
-
-  return that
-
-  function list (cb) {
-    return collect(keys.createValueStream(), cb)
+  function ondownload (index, data, peer) {
+    self.emit('download', this, index, data, peer)
   }
 
-  function append (change) {
-    that.changes(function (_, feed) {
-      if (feed && feed.secretKey) feed.append(JSON.stringify(change) + '\n')
-    })
+  function onupload (index, data, peer) {
+    self.emit('upload', this, index, data, peer)
   }
 
-  function cleanup (feed, stream) {
-    var hex = feed.discoveryKey.toString('hex')
-    var old = opened[hex]
+  function open (cb) {
+    self._open(cb)
+  }
+}
 
-    if (stream.destroyed) return close()
-    eos(stream, close)
+util.inherits(Archiver, events.EventEmitter)
 
-    function close () {
-      if (--old.cnt) return
-      old.feed = null
-      opened[hex] = null
-      feed.close()
-    }
+Archiver.prototype._open = function (cb) {
+  var self = this
+  var latest = {}
+  var i = 0
+
+  this.changes.createReadStream()
+    .on('data', ondata)
+    .on('error', cb)
+    .on('end', onend)
+
+  function ondata (data) {
+    i++
+    if (data.type === 'add') latest[data.key] = true
+    else delete latest[data.key]
   }
 
-  function replicate (opts) {
-    if (!opts) opts = {}
+  function onend () {
+    self.emit('changes', this.changes)
+    if (!self.changes.writable) self._tail(i)
 
-    var stream = core.replicate()
+    var keys = Object.keys(latest)
+    loop(null)
 
-    stream.setTimeout(5000, stream.destroy)
-    stream.setMaxListeners(0)
-    stream.on('open', onopen)
-
-    if (!opts.passive) {
-      // non-passive mode, request all keys we currently have
-      that.list().on('data', function (key) {
-        open(key, true, stream)
-      })
-
-      // TODO listen for newly-added feeds and request them too?
-    }
-
-    // handler for requests from the other end
-    function onopen (disc) {
-      // get the changes feed
-      that.changes(function (_, feed) {
-        // was the changes feed requested?
-        if (feed && feed.discoveryKey.toString('hex') === disc.toString('hex')) {
-          // replicate that
-          feed.replicate({stream: stream})
-          return
-        }
-
-        // is it a feed we possess?
-        keys.get(disc.toString('hex'), function (err, key) {
-          if (err) {
-            return
-          }
-          // replicate that
-          open(key, true, stream)
-        })
-      })
-    }
-
-    return stream
-  }
-
-  function add (key, opts, cb) {
-    if (typeof opts === 'function') return add(key, null, opts)
-    if (!opts) opts = {}
-
-    key = datKeyAs.buf(key)
-
-    var hex = hypercore.discoveryKey(key).toString('hex')
-    keys.get(hex, function (err) {
-      if (!err) return cb()
-
-      if (opts.content === false) noContent.put(hex, key, done)
-      else noContent.del(hex, key, done)
-    })
-
-    function done (err) {
+    function loop (err) {
       if (err) return cb(err)
-      keys.put(hex, key, function (err) {
-        if (!err) that.emit('add', key)
-        cb(err)
-      })
-      append({type: 'add', key: key.toString('hex')})
-    }
-  }
-
-  function remove (key, cb) {
-    key = datKeyAs.buf(key)
-    var hex = hypercore.discoveryKey(key).toString('hex')
-    keys.get(hex, function (err) {
-      if (err) return cb()
-      keys.del(hex, function (err) {
-        if (!err) that.emit('remove', key)
-        cb(err)
-      })
-      append({type: 'remove', key: key.toString('hex')})
-    })
-  }
-
-  function get (key, cb) {
-    key = datKeyAs.buf(key)
-    var discKey = hypercore.discoveryKey(key).toString('hex')
-    keys.get(discKey, function (err, key) {
-      if (err) return cb(err) // no key found
-
-      key = datKeyAs.str(key)
-      var feed = core.createFeed(key, {
-        storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data'))
-      })
-      noContent.get(discKey, function (err) {
-        if (!err) return done(null)
-        feed.get(0, {wait: false}, function (err, data) {
-          if (err) {
-            if (err.notFound) return done(null)
-            return cb(err)
-          }
-          var content = hyperdriveFeedKey(data)
-          if (content || !feed.blocks) return done(content)
-          feed.get(feed.blocks - 1, {wait: false}, function (err, data) {
-            if (err) {
-              if (err.notFound) return done(null)
-              return cb(err)
-            }
-            done(hyperdriveFeedKey(data))
-          })
-        })
-      })
-
-      function done (contentKey) {
-        if (!opened[discKey]) opened[discKey] = {feed: feed, cnt: 0}
-        opened[discKey].cnt++
-
-        if (!contentKey) return cb(null, feed)
-
-        contentKey = datKeyAs.str(contentKey)
-        var contentFeed = core.createFeed(contentKey, {
-          storage: storage(path.join(dir, 'data', contentKey.slice(0, 2), contentKey.slice(2) + '.data')),
-          sparse: opts.sparse
-        })
-        var contentDiscKey = hypercore.discoveryKey(contentKey).toString('hex')
-
-        if (!opened[contentDiscKey]) opened[contentDiscKey] = {feed: contentFeed, cnt: 0}
-        opened[contentDiscKey].cnt++
-        cb(null, feed, contentFeed)
-      }
-    })
-  }
-
-  function open (key, maybeContent, stream, isContent) {
-    if (stream.destroyed) return
-    key = datKeyAs.str(key)
-
-    var hex = that.discoveryKey(new Buffer(key, 'hex')).toString('hex')
-    var old = opened[hex] || {feed: null, cnt: 0}
-    var feed = old.feed
-
-    opened[hex] = old
-
-    if (!feed) {
-      old.feed = feed = core.createFeed(key, {
-        storage: storage(path.join(dir, 'data', key.slice(0, 2), key.slice(2) + '.data')),
-        sparse: opts.sparse && isContent
-      })
-    }
-
-    old.cnt++
-    feed.replicate({stream: stream})
-
-    if (!feed.firstDownload) {
-      var downloaded = false
-
-      feed.firstDownload = true
-      feed.once('download', function () {
-        downloaded = true
-      })
-      feed.once('download-finished', function () {
-        if (downloaded) that.emit('archived', feed.key, feed)
-      })
-    }
-
-    cleanup(feed, stream)
-
-    if (!maybeContent) return feed
-
-    noContent.get(feed.discoveryKey.toString('hex'), function (err) {
-      if (!err) return
-      feed.get(0, function (err, data) {
-        if (!decodeContent(err, data) && feed.blocks) feed.get(feed.blocks - 1, decodeContent)
-      })
-    })
-
-    return feed
-
-    function decodeContent (err, data) {
-      if (err) return false
-      var content = hyperdriveFeedKey(data)
-      if (!content) return false
-      open(content, false, stream, true)
-      return true
+      var next = keys.length ? toBuffer(keys.shift(), 'hex') : null
+      if (next) return self._add(next, cb)
+      self.emit('ready')
+      cb(null)
     }
   }
 }
 
-function hyperdriveFeedKey (data) {
-  try {
-    var index = encoding.decode(data)
-    if (index.type !== 'index') return null
-    if (!index.content || index.content.length !== 32) return null
-    return index.content
-  } catch (err) {
-    return null
+Archiver.prototype._tail = function (i) {
+  var self = this
+
+  self.changes.createReadStream({live: true, start: i})
+    .on('data', function (data) {
+      if (data.type === 'add') self._add(toBuffer(data.key, 'hex'))
+      else self._remove(toBuffer(data.key, 'hex'))
+    })
+    .on('error', function (err) {
+      self.emit('error', err)
+    })
+}
+
+Archiver.prototype.list = function (cb) {
+  var self = this
+
+  this.ready(function (err) {
+    if (err) return cb(err)
+
+    var keys = []
+    var a = Object.keys(self.feeds)
+    var b = Object.keys(self.archives)
+    var i = 0
+
+    for (i = 0; i < a.length; i++) keys.push(self.feeds[a[i]].key)
+    for (i = 0; i < b.length; i++) keys.push(self.archives[b[i]].key)
+
+    cb(null, keys)
+  })
+}
+
+Archiver.prototype.get = function (key, cb) {
+  var self = this
+  key = toBuffer(key, 'hex')
+  this.ready(function (err) {
+    if (err) return cb(err)
+
+    var dk = hypercore.discoveryKey(key).toString('hex')
+    var archive = self.archives[dk]
+    if (archive) return cb(null, archive.metadata, archive.content)
+
+    var feed = self.feeds[dk]
+    if (feed) return cb(null, feed)
+
+    cb(new Error('Could not find feed'))
+  })
+}
+
+Archiver.prototype.add = function (key, cb) {
+  if (!cb) cb = noop
+  var self = this
+
+  key = toBuffer(key, 'hex')
+  this.ready(function (err) {
+    if (err) return cb(err)
+    if (!self._add(key)) return cb(null)
+    self.changes.append({type: 'add', key: key.toString('hex')}, cb)
+  })
+}
+
+Archiver.prototype.remove = function (key, cb) {
+  if (!cb) cb = noop
+  var self = this
+
+  key = toBuffer(key, 'hex')
+  this.ready(function (err) {
+    if (err) return cb(err)
+    if (self._remove(key, cb)) {
+      self.changes.append({type: 'remove', key: key.toString('hex')})
+    }
+  })
+}
+
+Archiver.prototype.replicate = function (opts) {
+  if (!opts) opts = {}
+
+  if (opts.discoveryKey) opts.discoveryKey = toBuffer(opts.discoveryKey, 'hex')
+  if (opts.key) opts.discoveryKey = hypercore.discoveryKey(toBuffer(opts.key, 'hex'))
+
+  var stream = protocol({live: true, id: this.changes.id})
+  var self = this
+
+  stream.on('feed', add)
+  if (opts.channel || opts.discoveryKey) add(opts.channel || opts.discoveryKey)
+
+  function add (dk) {
+    self.ready(function (err) {
+      if (err) return stream.destroy(err)
+      if (stream.destroyed) return
+
+      var hex = dk.toString('hex')
+      var changesHex = self.changes.discoveryKey.toString('hex')
+
+      var archive = self.archives[hex]
+      if (archive) return onarchive()
+
+      var feed = changesHex === hex ? self.changes : self.feeds[hex]
+      if (feed) return onfeed()
+
+      function onarchive () {
+        archive.metadata.replicate({
+          stream: stream,
+          live: true
+        })
+        archive.content.replicate({
+          stream: stream,
+          live: true
+        })
+      }
+
+      function onfeed () {
+        feed.on('_archive', onarchive)
+        feed.replicate({
+          stream: stream,
+          live: true
+        })
+
+        function onarchive () {
+          if (stream.destroyed) return
+
+          var content = self.archives[hex].content
+          content.replicate({stream: stream})
+        }
+      }
+    })
   }
+
+  return stream
+}
+
+Archiver.prototype._remove = function (key, cb) {
+  var dk = hypercore.discoveryKey(key).toString('hex')
+
+  var feed = this.feeds[dk]
+
+  if (feed) {
+    delete this.feeds[dk]
+    feed.removeListener('download', this._ondownload)
+    feed.removeListener('upload', this._onupload)
+    feed.close(cb)
+    return true
+  }
+
+  var archive = this.archives[dk]
+  if (!archive) {
+    cb()
+    return false
+  }
+
+  delete this.archives[dk]
+  archive.metadata.removeListener('download', this._ondownload)
+  archive.metadata.removeListener('upload', this._onupload)
+  archive.content.removeListener('download', this._ondownload)
+  archive.content.removeListener('upload', this._onupload)
+  archive.metadata.close(function () {
+    archive.content.close(cb)
+  })
+
+  return true
+}
+
+Archiver.prototype._add = function (key, cb) {
+  var dk = hypercore.discoveryKey(key).toString('hex')
+  var self = this
+  var emitted = false
+  var content = null
+  var archive = null
+
+  if (this.feeds[dk] || this.archives[dk]) return false
+
+  var feed = this.feeds[dk] = hypercore(storage(key), key, {sparse: this.sparse})
+  var downloaded = false
+
+  feed.on('download', ondownload)
+  feed.on('download', this._ondownload)
+  feed.on('upload', this._onupload)
+
+  feed.ready(function (err) {
+    if (err) return
+    if (!feed.has(0)) emit()
+
+    feed.get(0, function (_, data) {
+      var contentKey = parseContentKey(data)
+
+      if (!contentKey) {
+        feed.on('sync', onsync)
+        emit()
+        if (isSynced(feed) && downloaded) onsync()
+        return
+      }
+
+      if (self.feeds[dk] !== feed) return // was removed
+
+      content = hypercore(storage(contentKey), contentKey, {sparse: self.sparse})
+      content.on('download', ondownload)
+      content.on('download', self._ondownload)
+      content.on('upload', self._onupload)
+      content.on('sync', onsync)
+      feed.on('sync', onsync)
+
+      delete self.feeds[dk]
+      archive = self.archives[dk] = {
+        metadataSynced: isSynced(feed),
+        metadata: feed,
+        contentSynced: isSynced(content),
+        content: content
+      }
+
+      feed.emit('_archive')
+      emit()
+      if (archive.metadataSynced && archive.contentSynced && downloaded) onsync()
+    })
+  })
+
+  return true
+
+  function emit () {
+    if (emitted) return
+    emitted = true
+    self.emit('add', feed, content)
+    if (cb) cb()
+  }
+
+  function ondownload () {
+    downloaded = true
+    if (!archive) return
+    if (this === feed) archive.metadataSynced = false
+    else archive.contentSynced = false
+  }
+
+  function onsync () {
+    if (archive) {
+      if (self.archives[dk] !== archive) return
+      if (this === content) archive.contentSynced = true
+      else archive.metadataSynced = true
+      if (archive.metadataSynced && archive.contentSynced) self.emit('sync', feed, content)
+    } else {
+      if (self.feeds[dk] !== feed) return
+      self.emit('sync', feed, null)
+    }
+  }
+
+  function storage (key) {
+    var dk = hypercore.discoveryKey(key).toString('hex')
+    var prefix = dk.slice(0, 2) + '/' + dk.slice(2, 4) + '/' + dk.slice(4) + '/'
+
+    return function (name) {
+      return self.storage.feeds(prefix + name)
+    }
+  }
+}
+
+function noop () {}
+
+function isSynced (feed) {
+  if (!feed.length) return false
+  for (var i = 0; i < feed.length; i++) {
+    if (!feed.has(i)) return false
+  }
+  return true
+}
+
+function defaultStorage (st) {
+  if (typeof st === 'string') {
+    return {
+      changes: function (name) {
+        return raf(path.join(st, 'changes', name))
+      },
+      feeds: function (name) {
+        return raf(path.join(st, 'feeds', name))
+      }
+    }
+  }
+
+  if (typeof st === 'function') {
+    return {
+      changes: function (name) {
+        return st('changes/' + name)
+      },
+      feeds: function (name) {
+        return st('feeds/' + name)
+      }
+    }
+  }
+
+  return st
+}
+
+function parseContentKey (data) {
+  var hex = data && data.toString('hex')
+  if (!hex || hex.indexOf(toBuffer('hyperdrive').toString('hex')) === -1 || hex.length < 64) return
+  return toBuffer(hex.slice(-64), 'hex')
 }

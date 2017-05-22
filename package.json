@@ -1,28 +1,25 @@
 {
   "name": "hypercore-archiver",
   "version": "3.4.0",
-  "description": "A hypercore peer that will backup multiple hypercores/hyperdrives efficiently to disk.",
+  "description": "Easily archive multiple hypercores or hyperdrives",
   "main": "index.js",
   "dependencies": {
-    "dat-key-as": "^1.0.0",
-    "end-of-stream": "^1.1.0",
-    "hypercore": "^4.19.0",
-    "hyperdrive-encoding": "^2.0.1",
-    "level": "^1.5.0",
-    "random-access-file": "^1.3.1",
-    "stream-collector": "^1.0.1",
-    "subleveldown": "^2.1.0",
-    "thunky": "^1.0.1"
+    "datland-swarm-defaults": "^1.0.2",
+    "discovery-swarm": "^4.3.7",
+    "hypercore": "^6.3.6",
+    "hypercore-protocol": "^6.3.1",
+    "random-access-file": "^1.7.2",
+    "thunky": "^1.0.2",
+    "to-buffer": "^1.1.0"
   },
   "devDependencies": {
-    "hyperdrive": "^7.14.1",
-    "memdb": "^1.3.1",
-    "random-access-memory": "^2.3.0",
-    "standard": "^8.4.0",
+    "hyperdrive": "^9.2.8",
+    "random-access-memory": "^2.4.0",
+    "standard": "^10.0.2",
     "tape": "^4.6.3"
   },
   "scripts": {
-    "test": "standard && tape tests/*.js"
+    "test": "standard && tape test/*.js"
   },
   "repository": {
     "type": "git",
