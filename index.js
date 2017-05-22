@@ -63,7 +63,7 @@ Archiver.prototype._open = function (cb) {
   }
 
   function onend () {
-    self.emit('changes', this.changes)
+    self.emit('changes', self.changes)
     if (!self.changes.writable) self._tail(i)
 
     var keys = Object.keys(latest)
