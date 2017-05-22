@@ -158,7 +158,7 @@ Archiver.prototype.replicate = function (opts) {
   if (opts.discoveryKey) opts.discoveryKey = toBuffer(opts.discoveryKey, 'hex')
   if (opts.key) opts.discoveryKey = hypercore.discoveryKey(toBuffer(opts.key, 'hex'))
 
-  var stream = protocol({live: true, id: this.changes.id})
+  var stream = protocol({live: true, id: this.changes.id, encrypt: opts.encrypt})
   var self = this
 
   stream.on('feed', add)
