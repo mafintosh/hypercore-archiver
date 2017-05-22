@@ -216,6 +216,7 @@ Archiver.prototype._remove = function (key, cb) {
 
   if (feed) {
     delete this.feeds[dk]
+    this.emit('remove', feed)
     feed.removeListener('download', this._ondownload)
     feed.removeListener('upload', this._onupload)
     feed.close(cb)
@@ -229,6 +230,7 @@ Archiver.prototype._remove = function (key, cb) {
   }
 
   delete this.archives[dk]
+  this.emit('remove', archive.metadata, archive.content)
   archive.metadata.removeListener('download', this._ondownload)
   archive.metadata.removeListener('upload', this._onupload)
   archive.content.removeListener('download', this._ondownload)
