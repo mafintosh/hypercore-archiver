@@ -1,6 +1,6 @@
 {
   "name": "hypercore-archiver",
-  "version": "4.0.3",
+  "version": "4.1.0",
   "description": "Easily archive multiple hypercores or hyperdrives",
   "main": "index.js",
   "dependencies": {
