@@ -104,7 +104,7 @@ Archiver.prototype.list = function (cb) {
     var i = 0
 
     for (i = 0; i < a.length; i++) keys.push(self.feeds[a[i]].key)
-    for (i = 0; i < b.length; i++) keys.push(self.archives[b[i]].key)
+    for (i = 0; i < b.length; i++) keys.push(self.archives[b[i]].metadata.key)
 
     cb(null, keys)
   })
