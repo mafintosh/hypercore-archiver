@@ -200,7 +200,10 @@ Archiver.prototype.replicate = function (opts) {
           if (stream.destroyed) return
 
           var content = self.archives[hex].content
-          content.replicate({stream: stream})
+          content.replicate({
+            stream: stream,
+            live: true
+          })
         }
       }
     })
