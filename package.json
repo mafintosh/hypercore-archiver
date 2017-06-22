@@ -10,7 +10,8 @@
     "hypercore-protocol": "^6.3.1",
     "random-access-file": "^1.7.2",
     "thunky": "^1.0.2",
-    "to-buffer": "^1.1.0"
+    "to-buffer": "^1.1.0",
+    "xtend": "^4.0.1"
   },
   "devDependencies": {
     "hyperdrive": "^9.2.8",
