@@ -74,7 +74,7 @@ Archiver.prototype._open = function (cb) {
       if (err) return cb(err)
       var next = keys.length ? toBuffer(keys.shift(), 'hex') : null
       debug('open changes key', next && next.toString('hex'))
-      if (next) return self._add(next, cb)
+      if (next) return self._add(next, loop)
       self.emit('ready')
       cb(null)
     }
