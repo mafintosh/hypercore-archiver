@@ -6,6 +6,7 @@ var thunky = require('thunky')
 var toBuffer = require('to-buffer')
 var util = require('util')
 var events = require('events')
+var debug = require('debug')('hypercore-archiver')
 
 module.exports = Archiver
 
@@ -72,6 +73,7 @@ Archiver.prototype._open = function (cb) {
     function loop (err) {
       if (err) return cb(err)
       var next = keys.length ? toBuffer(keys.shift(), 'hex') : null
+      debug('open changes key', next && next.toString('hex'))
       if (next) return self._add(next, cb)
       self.emit('ready')
       cb(null)
@@ -102,6 +104,9 @@ Archiver.prototype.list = function (cb) {
     var a = Object.keys(self.feeds)
     var b = Object.keys(self.archives)
     var i = 0
+
+    debug('list, feeds length', a.length)
+    debug('list, archive length', b.length)
 
     for (i = 0; i < a.length; i++) keys.push(self.feeds[a[i]].key)
     for (i = 0; i < b.length; i++) keys.push(self.archives[b[i]].metadata.key)
@@ -252,6 +257,7 @@ Archiver.prototype._add = function (key, cb) {
   var content = null
   var archive = null
 
+  debug('_add, exists:', this.feeds[dk] || this.archives[dk])
   if (this.feeds[dk] || this.archives[dk]) return false
 
   var feed = this.feeds[dk] = hypercore(storage(key), key, {sparse: this.sparse})
@@ -275,6 +281,7 @@ Archiver.prototype._add = function (key, cb) {
         return
       }
 
+      debug('_add, was removed', self.feeds[dk] !== feed)
       if (self.feeds[dk] !== feed) return // was removed
 
       content = hypercore(storage(contentKey), contentKey, {sparse: self.sparse})

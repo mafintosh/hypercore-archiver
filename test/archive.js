@@ -1,6 +1,7 @@
 var tape = require('tape')
 var ram = require('random-access-memory')
 var hyperdrive = require('hyperdrive')
+var tmp = require('temporary-directory')
 var archiver = require('../')
 
 tape('add archive', function (t) {
@@ -36,6 +37,32 @@ tape('list archives', function (t) {
         t.error(err, 'no error')
         t.same(list, [archive.key])
         t.end()
+      })
+    })
+  })
+})
+
+tape('list archives on disk', function (t) {
+  var archive = hyperdrive(ram)
+
+  tmp(function (_, dir, cleanup) {
+    archive.writeFile('/hello.txt', 'world', function () {
+      var a = archiver(dir)
+
+      a.add(archive.key, function () {
+        a.list(function (err, list) {
+          t.error(err, 'no error')
+          t.same(list, [archive.key])
+
+          var a2 = archiver(dir)
+          a2.list(function (err, list) {
+            t.error(err, 'no error')
+            t.same(list, [archive.key])
+            cleanup(function () {
+              t.end()
+            })
+          })
+        })
       })
     })
   })

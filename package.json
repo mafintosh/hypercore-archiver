@@ -5,19 +5,21 @@
   "main": "index.js",
   "dependencies": {
     "datland-swarm-defaults": "^1.0.2",
+    "debug": "^2.6.8",
     "discovery-swarm": "^4.3.7",
-    "hypercore": "^6.3.6",
-    "hypercore-protocol": "^6.3.1",
-    "random-access-file": "^1.7.2",
+    "hypercore": "^6.6.3",
+    "hypercore-protocol": "^6.4.0",
+    "random-access-file": "^1.8.1",
     "thunky": "^1.0.2",
     "to-buffer": "^1.1.0",
     "xtend": "^4.0.1"
   },
   "devDependencies": {
-    "hyperdrive": "^9.2.8",
+    "hyperdrive": "^9.4.6",
     "random-access-memory": "^2.4.0",
     "standard": "^10.0.2",
-    "tape": "^4.6.3"
+    "tape": "^4.7.0",
+    "temporary-directory": "^1.0.2"
   },
   "scripts": {
     "test": "standard && tape test/*.js"
