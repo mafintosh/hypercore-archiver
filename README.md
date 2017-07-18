@@ -44,7 +44,7 @@ Options include
 }
 ```
 
-##### Spare File Storage
+##### Sparse File Storage
 
 The sparse option uses sparse file mode, only availalbe on some file systems. It will appear as a full size file but only take up the space actually used on disk.
 
