@@ -44,6 +44,13 @@ Options include
 }
 ```
 
+##### Spare File Storage
+
+The sparse option uses sparse file mode, only availalbe on some file systems. It will appear as a full size file but only take up the space actually used on disk.
+
+* Use `ls -alsh` to view the actual size (first column)
+* sparse file mode (APFS) is not available on Mac OSX.
+
 #### `ar.add(key, [callback])`
 
 Add a new hypercore or hyperdrive key to be archived.
