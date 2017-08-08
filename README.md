@@ -80,7 +80,7 @@ To have the archiver ask to replicate one pass in `{key: feedKey}` as an option.
 
 Emitted when a feed is being added
 
-#### `ar.on('remove', feed)
+#### `ar.on('remove', feed)`
 
 Emitted when a feed is being removed
 
