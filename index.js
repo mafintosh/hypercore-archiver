@@ -195,11 +195,20 @@ Archiver.prototype.replicate = function (opts) {
       }
 
       function onfeed () {
+        if (stream.destroyed) return
+
+        stream.on('close', onclose)
+        stream.on('end', onclose)
+
         feed.on('_archive', onarchive)
         feed.replicate({
           stream: stream,
           live: true
         })
+
+        function onclose () {
+          feed.removeListener('_archive', onarchive)
+        }
 
         function onarchive () {
           if (stream.destroyed) return
