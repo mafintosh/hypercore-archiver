@@ -309,7 +309,7 @@ Archiver.prototype._add = function (key, cb) {
       }
 
       feed.emit('_archive')
-      self.emit('add-archive', metadata, content)
+      self.emit('add-archive', feed, content)
       emit()
       if (archive.metadataSynced && archive.contentSynced && downloaded) onsync()
     })
