@@ -76,9 +76,14 @@ A changes feed containing the archiver state. Pass the changes feed key to anoth
 Create a replication stream. Per defaults the archiver will replicate any feed the remote asks for.
 To have the archiver ask to replicate one pass in `{key: feedKey}` as an option.
 
+
 #### `ar.on('add', feed)`
 
 Emitted when a feed is being added
+
+#### `ar.on('add-archive', metadataFeed, contentFeed)`
+
+Emitted if a feed is identified as a [Hyperdrive](https://github.com/mafintosh/hyperdrive) archive
 
 #### `ar.on('remove', feed)`
 
