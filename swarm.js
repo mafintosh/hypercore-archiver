@@ -6,7 +6,6 @@ module.exports = swarm
 
 function swarm (archiver, opts) {
   var swarmOpts = xtend({
-    port: 3282,
     hash: false,
     stream: function (opts) {
       return archiver.replicate(opts)
@@ -25,6 +24,11 @@ function swarm (archiver, opts) {
 
   archiver.on('remove', function (feed) {
     sw.leave(feed.discoveryKey)
+  })
+
+  sw.listen(3282)
+  sw.once('error', function () {
+    sw.listen()
   })
 
   return sw
