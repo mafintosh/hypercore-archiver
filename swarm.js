@@ -5,6 +5,7 @@ var defaults = require('datland-swarm-defaults')
 module.exports = swarm
 
 function swarm (archiver, opts) {
+  var port = opts.port || 3282
   var swarmOpts = xtend({
     hash: false,
     stream: function (opts) {
@@ -26,7 +27,7 @@ function swarm (archiver, opts) {
     sw.leave(feed.discoveryKey)
   })
 
-  sw.listen(3282)
+  sw.listen(port)
   sw.once('error', function () {
     sw.listen()
   })
