@@ -5,7 +5,7 @@ var defaults = require('datland-swarm-defaults')
 module.exports = swarm
 
 function swarm (archiver, opts) {
-  var port = opts.port || 3282
+  var port = (opts && opts.port) || 3282
   var swarmOpts = xtend({
     hash: false,
     stream: function (opts) {

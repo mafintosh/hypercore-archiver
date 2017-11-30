@@ -119,7 +119,7 @@ The swarm listens on port 3282, both tcp and udp. If you require a different por
 
 ```js
 var swarm = require('hypercore-archiver/swarm')
-swarm(archiver, {port: 60234}
+swarm(archiver, {port: 60234})
 ```
 
 ## License
