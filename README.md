@@ -1,6 +1,6 @@
 # hypercore-archiver
 
-Easily archive multiple hypercores or hyperdrives
+Easily archive multiple [hypercores](https://github.com/mafintosh/hypercore) or [hyperdrives](https://github.com/mafintosh/hyperdrive)
 
 ## Usage
 
