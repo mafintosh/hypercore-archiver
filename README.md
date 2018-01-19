@@ -46,7 +46,7 @@ Options include
 
 ##### Sparse File Storage
 
-The sparse option uses sparse file mode, only availalbe on some file systems. It will appear as a full size file but only take up the space actually used on disk.
+The sparse option uses sparse file mode, only available on some file systems. It will appear as a full size file but only take up the space actually used on disk.
 
 * Use `ls -alsh` to view the actual size (first column)
 * sparse file mode (APFS) is not available on Mac OSX.
