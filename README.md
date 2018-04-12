@@ -63,6 +63,10 @@ Remove a key.
 
 List all hypercores and hyperdrives being archived.
 
+#### `ar.import(archiverKey, callback)`
+
+Add all hypercores archived in another hypercore-archiver instance
+
 #### `ar.get(key, callback)`
 
 Retrieve the feed being archived. If the key points to a hyperdrive the callback is called with `(err, metadataFeed, contentFeed)`

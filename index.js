@@ -6,6 +6,9 @@ var thunky = require('thunky')
 var toBuffer = require('to-buffer')
 var util = require('util')
 var events = require('events')
+var datcat = require('datcat')
+var pump = require('pump')
+var through = require('through2')
 var debug = require('debug')('hypercore-archiver')
 
 module.exports = Archiver
@@ -154,6 +157,69 @@ Archiver.prototype.remove = function (key, cb) {
     if (self._remove(key, cb)) {
       self.changes.append({type: 'remove', key: key.toString('hex')})
     }
+  })
+}
+
+Archiver.prototype.status = function (key, cb) {
+  if (!cb) cb = noop
+  var self = this
+
+  self.ready(function (err) {
+    if (err) return cb(err)
+    self.get(key, function (err, feed, content) {
+      if (err) return cb(err)
+      if (content && content.length === 0 && feed.length > 1) {
+        return content.update(function () {
+          self.status(key, cb)
+        })
+      }
+      if (!content) content = {length: 0}
+      var need = feed.length + content.length
+      var have = need - blocksRemain(feed) - blocksRemain(content)
+      return cb(null, { key: key, need: need, have: have })
+    })
+
+    function blocksRemain (feed) {
+      if (!feed.length) return 0
+      var remaining = 0
+      for (var i = 0; i < feed.length; i++) {
+        if (!feed.has(i)) remaining++
+      }
+      return remaining
+    }
+  })
+}
+
+Archiver.prototype.import = function (key, cb) {
+  if (!cb) cb = noop
+  var self = this
+
+  this.ready(function (err) {
+    if (err) return cb(err)
+    var keys = {}
+    var feeds = datcat(key)
+    var collect = function (item, enc, next) {
+      try { item = JSON.parse(item) } catch (e) { return next(e) }
+      if (!item.type && !item.key) return next(new Error('feed does not contain importable keys'))
+      if (item.type && item.type === 'hyperdrive') return next(new Error('feed is a hyperdrive, not importable'))
+      if (item.type === 'add') keys[item.key] = true
+      if (item.type === 'remove') delete keys[item.key]
+      next()
+    }
+    pump(feeds, through.obj(collect), function (err) {
+      if (err) return cb(err)
+      var list = Object.keys(keys)
+      if (list.length === 0) return cb(new Error('got zero feeds'))
+      function next () {
+        var item = list.shift()
+        if (!item) return cb()
+        self.add(item, function (err) {
+          if (err) return cb(err)
+          next()
+        })
+      }
+      next()
+    })
   })
 }
 
