@@ -1,6 +1,6 @@
 var xtend = require('xtend')
 var discoverySwarm = require('discovery-swarm')
-var defaults = require('datland-swarm-defaults')
+var defaults = require('dat-swarm-defaults')
 
 module.exports = swarm
 
