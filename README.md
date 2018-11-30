@@ -32,7 +32,7 @@ feed.append(['hello', 'world'])
 
 #### `var ar = archiver(storage, [key], [options])`
 
-Create a new archvier. `storage` can be a file system path or a storage provider like [random-access-memory](https://github.com/mafintosh/random-access-memory).
+Create a new archiver. `storage` can be a file system path or a storage provider like [random-access-memory](https://github.com/mafintosh/random-access-memory).
 
 If this archiver is a clone of another archiver pass the changes feed key as the 2nd argument.
 
